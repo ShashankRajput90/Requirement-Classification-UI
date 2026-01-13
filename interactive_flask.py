@@ -28,11 +28,12 @@ class AppConfig:
     
     # Available Models - Add/remove models here
     MODELS = {
-        'groq_llama3': 'Groq LLaMA 3.1 8B',
-        'gemini': 'Gemini 2.5 Pro',
-        'cohere': 'Cohere Command-R+',
-        'claude': 'Claude 3 Haiku',
-        'mistral': 'Mistral Local'
+        'Groq LLaMA 3.1 8B': 'groq_llama3',
+        'Groq DeepSeek': 'groq_deepseek',
+        'Gemini 2.5 Pro': 'gemini',
+        'Cohere Command-R+': 'cohere',
+        'Claude 3 Haiku': 'claude',
+        'Mistral Local': 'mistral'
     }
     
     # Available Techniques - Only Few Shot and Zero Shot
@@ -45,7 +46,7 @@ class AppConfig:
     }
     
     # Default Settings
-    DEFAULT_MODEL = 'groq_llama3'
+    DEFAULT_MODEL = 'Groq LLaMA 3.1 8B'
     DEFAULT_TECHNIQUE = 'Zero Shot'
     
     # Test Stories for Model Comparison - Easy to add more
@@ -166,13 +167,12 @@ def _ensure_session():
 # Model dispatch
 def get_model_fn(model_key):
     mapping = {
-        'groq_llama3': classify_with_groq or classify_with_groq_deepseek or _stub_classify,
-        'groq_gpt': classify_with_groq_deepseek or classify_with_groq or _stub_classify,
-        'gemini': classify_with_gemini or _stub_classify,
-        'cohere': classify_with_cohere or _stub_classify,
-        'claude': classify_with_claude or _stub_classify,
-        'mistral': classify_with_mistral_local or _stub_classify,
-        'mistral_local': classify_with_mistral_local or _stub_classify,
+        'Groq LLaMA 3.1 8B': classify_with_groq or _stub_classify,
+        'Groq DeepSeek': classify_with_groq_deepseek or _stub_classify,
+        'Gemini 2.5 Pro': classify_with_gemini or _stub_classify,
+        'Cohere Command-R+': classify_with_cohere or _stub_classify,
+        'Claude 3 Haiku': classify_with_claude or _stub_classify,
+        'Mistral Local': classify_with_mistral_local or _stub_classify,
     }
     # Default to stub for any unknown key
     return mapping.get(model_key, _stub_classify)
