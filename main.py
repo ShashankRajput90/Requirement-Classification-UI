@@ -10,7 +10,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from groq import Groq
-import google.generativeai as genai
+from google import genai
 import cohere
 from anthropic import Anthropic
 from typing import List, Literal, Dict, Any
@@ -23,7 +23,7 @@ from config import settings
 # =========================
 try:
     if settings.GEMINI_API_KEY:
-        genai.configure(api_key=settings.GEMINI_API_KEY)
+        gemini_client = genai.Client(api_key=settings.GEMINI_API_KEY)
     if settings.COHERE_API_KEY:
         co = cohere.Client(settings.COHERE_API_KEY)
     if settings.CLAUDE_API_KEY:
@@ -318,8 +318,10 @@ def classify_with_groq(story: str, technique: str, model_name: str) -> str:
 def classify_with_gemini_llm(story: str, technique: str) -> str:
     prompt = build_prompt(story, technique)
     try:
-        model = genai.GenerativeModel('gemini-2.5-flash-preview-09-2025')
-        response = model.generate_content(prompt)
+        response = gemini_client.models.generate_content(
+            model="gemini-2.0-flash-exp",
+            contents=prompt
+        )
         return clean_llm_response(response.text)
     except Exception as e:
         return f"❌ Gemini Error: {e}"

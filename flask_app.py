@@ -7,7 +7,7 @@ Simplified & cleaned Flask app (Option B)
 - Use this file as a drop-in replacement for your previous Flask file
 """
 
-from flask import Flask, render_template, request, session, send_file, Response
+from flask import Flask, render_template, request, session, send_file, Response, jsonify
 import json
 import io
 import os
@@ -455,39 +455,117 @@ def api_analytics_data():
     try:
         history = session.get('classification_history', [])
         if not history:
-            return json_response({'success': True, 'metrics': {'total': 0, 'fr': 0, 'nfr': 0, 'avg_time': 0}, 'charts': {}, 'recent_activity': []})
+            return json_response({
+                'success': True,
+                'metrics': {
+                    'total': 0,
+                    'fr': 0,
+                    'nfr': 0,
+                    'avg_time': 0
+                },
+                'charts': {},
+                'recent_activity': []
+            })
 
         df = pd.DataFrame(history)
+
+        # -------------------------
+        # GLOBAL METRICS
+        # -------------------------
         total = int(len(df))
         fr = int((df['classification'] == 'No').sum())
         nfr = int((df['classification'] == 'Yes').sum())
-        avg_time = float(round(df['processing_time'].mean(), 3)) if 'processing_time' in df else 0.0
+        avg_time = float(round(df['processing_time'].mean(), 3))
 
-        metrics = {'total': total, 'fr': fr, 'nfr': nfr, 'avg_time': avg_time}
+        metrics = {
+            'total': total,
+            'fr': fr,
+            'nfr': nfr,
+            'avg_time': avg_time
+        }
 
-        # charts
+        # -------------------------
+        # CHARTS (UNCHANGED)
+        # -------------------------
         charts = {}
+
         try:
             classification_counts = df['classification'].value_counts()
-            fig_dist = px.pie(values=classification_counts.values, names=classification_counts.index, title='Classification Distribution')
+            fig_dist = px.pie(
+                values=classification_counts.values,
+                names=classification_counts.index,
+                title='Classification Distribution'
+            )
             charts['distribution'] = json.dumps(fig_dist, cls=plotly.utils.PlotlyJSONEncoder)
         except Exception:
             charts['distribution'] = None
 
         try:
             model_counts = df['model'].value_counts()
-            fig_models = px.bar(x=model_counts.index, y=model_counts.values, title='Model Usage')
+            fig_models = px.bar(
+                x=model_counts.index,
+                y=model_counts.values,
+                title='Model Usage'
+            )
             charts['models'] = json.dumps(fig_models, cls=plotly.utils.PlotlyJSONEncoder)
         except Exception:
             charts['models'] = None
 
-        recent_activity = ensure_py(df.tail(10)[['timestamp', 'story_preview', 'model', 'classification']].to_dict('records'))
+        # -------------------------
+        # GROUP BY MODEL (MOST RECENT)
+        # -------------------------
+        grouped = (
+            df.sort_values('timestamp')
+              .groupby('model', as_index=False)
+              .agg(
+                  total_runs=('model', 'count'),
+                  fr_count=('classification', lambda x: (x == 'No').sum()),
+                  nfr_count=('classification', lambda x: (x == 'Yes').sum()),
+                  first_seen=('timestamp', 'min'),
+                  last_seen=('timestamp', 'max'),
+                  avg_time=('processing_time', 'mean')
+              )
+        )
 
-        return json_response({'success': True, 'metrics': metrics, 'charts': charts, 'recent_activity': recent_activity})
+        grouped['avg_time'] = grouped['avg_time'].astype(float).round(3)
+
+        # -------------------------
+        # ACCURACY (BEST-EFFORT)
+        # -------------------------
+        # If expected labels exist, compute accuracy
+        if 'expected' in df.columns:
+            acc_df = (
+                df.assign(correct=lambda x: x['expected'] == x['classification'])
+                  .groupby('model')['correct']
+                  .mean()
+                  .reset_index(name='accuracy')
+            )
+            grouped = grouped.merge(acc_df, on='model', how='left')
+            grouped['accuracy'] = (grouped['accuracy'] * 100).round(2)
+        else:
+            grouped['accuracy'] = 'N/A'
+
+        # -------------------------
+        # MOST RECENT PER MODEL
+        # -------------------------
+        recent_activity = (
+            grouped.sort_values(by='last_seen', ascending=False)
+                   .to_dict('records')
+        )
+
+        return json_response({
+            'success': True,
+            'metrics': metrics,
+            'charts': charts,
+            'recent_activity': ensure_py(recent_activity)
+        })
+
     except Exception as e:
         logger.exception("api_analytics_data failure")
-        return json_response({'error': f'Analytics data failed: {str(e)}'}, status=500)
-
+        return json_response(
+            {'error': f'Analytics data failed: {str(e)}'},
+            status=500
+        )
 
 @app.route('/api/download_history', methods=['GET'])
 def api_download_history():

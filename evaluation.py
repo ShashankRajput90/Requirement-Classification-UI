@@ -222,6 +222,11 @@ if __name__ == "__main__":
 
     models = [
         (classify_with_mistral_local, "Mistral Local"),
+        (classify_with_groq, "Groq LLaMA3"),
+        (classify_with_gemini, "Gemini"),
+        (classify_with_cohere, "Cohere"),
+        (classify_with_claude, "Claude"),
+        (classify_with_mistral_local, "Mistral Local"),
     ]
 
     results_binary = []

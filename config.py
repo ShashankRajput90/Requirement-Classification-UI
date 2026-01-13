@@ -33,8 +33,8 @@ class Config:
     # Application Settings
     CLASSIFICATION_HISTORY_LIMIT = 1000  # Maximum history entries per session
     BATCH_PROCESSING_LIMIT = 100  # Maximum stories per batch
-    DEFAULT_MODEL = 'Gemini 2.5 Pro'
-    DEFAULT_PROMPT = 'Few Shot'
+    DEFAULT_MODEL = 'Groq LLaMA 3.1 8B'
+    DEFAULT_PROMPT = 'Zero Shot'
     
     # CORS Settings
     CORS_ORIGINS = ['http://localhost:3000', 'http://127.0.0.1:3000']
@@ -62,8 +62,8 @@ class DevelopmentConfig(Config):
         Config.init_app(app)
         
         # Development specific initialization
-        print("🚀 Flask app running in DEVELOPMENT mode")
-        print(f"📁 Upload folder: {app.config['UPLOAD_FOLDER']}")
+        print("Flask app running in DEVELOPMENT mode")
+        print(f"Upload folder: {app.config['UPLOAD_FOLDER']}")
 
 class ProductionConfig(Config):
     """Production configuration"""
@@ -95,7 +95,7 @@ class ProductionConfig(Config):
         file_handler.setLevel(logging.INFO)
         app.logger.addHandler(file_handler)
         app.logger.setLevel(logging.INFO)
-        app.logger.info('🚀 Classification application startup (Production)')
+        app.logger.info('Classification application startup (Production)')
 
 class TestingConfig(Config):
     """Testing configuration"""

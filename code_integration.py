@@ -91,6 +91,49 @@ User Story: "{user_story}"
         return f"{base_instruction}\n\nUser Story: \"{user_story}\""
 
 # =========================
+# Prompt Builder (EXTRACTED FROM main.py)
+# =========================
+
+class PromptBuilder:
+    BASE_INSTRUCTION = """
+You are a software engineering assistant.
+Respond ONLY in exactly 3 lines:
+1. Is NFR: <Yes/No>
+2. NFR Type: <type>
+3. Reason: <one line>
+"""
+
+    @staticmethod
+    def build(story: str, technique: str = "zero_shot") -> str:
+        if technique == "zero_shot":
+            return f"{PromptBuilder.BASE_INSTRUCTION}\nUser Story: \"{story}\""
+
+        if technique == "few_shot":
+            return f"""
+{PromptBuilder.BASE_INSTRUCTION}
+User Story: "The system must respond in under 2 seconds."
+1. Is NFR: Yes
+2. NFR Type: Performance
+3. Reason: Response time constraint
+
+User Story: "{story}"
+"""
+
+        return f"{PromptBuilder.BASE_INSTRUCTION}\nUser Story: \"{story}\""
+
+class ResponseCleaner:
+    @staticmethod
+    def clean(raw: str) -> str:
+        if not raw:
+            return "⚠️ Empty response"
+
+        if "<think>" in raw:
+            raw = raw.split("</think>")[-1].strip()
+
+        lines = [l.strip() for l in raw.split("\n") if l.strip()]
+        return "\n".join(lines[:3])
+
+# =========================
 # Model Functions
 # =========================
 def classify_with_groq_deepseek(user_story, technique):
@@ -127,10 +170,12 @@ def classify_with_groq(user_story, technique):
 
 def classify_with_gemini(user_story, technique):
     try:
-        genai.configure(api_key=GEMINI_API_KEY)
-        model = genai.GenerativeModel("models/gemini-2.5-pro")
+        client = genai.Client(api_key=GEMINI_API_KEY)
         prompt = build_prompt(user_story, technique)
-        response = model.generate_content(prompt)
+        response = client.models.generate_content(
+            model="gemini-2.5-pro",
+            contents=prompt
+        )
         return clean_response(response.text)
     except Exception as e:
         return f"❌ Gemini Error: {e}"

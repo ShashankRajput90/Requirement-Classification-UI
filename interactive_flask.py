@@ -46,7 +46,7 @@ class AppConfig:
     
     # Default Settings
     DEFAULT_MODEL = 'groq_llama3'
-    DEFAULT_TECHNIQUE = 'Few Shot'
+    DEFAULT_TECHNIQUE = 'Zero Shot'
     
     # Test Stories for Model Comparison - Easy to add more
     TEST_STORIES = [
@@ -515,26 +515,51 @@ def api_stats():
 
 @app.route('/api/analytics_data', methods=['GET'])
 def api_analytics_data():
+    """Return analytics data with native Python types to avoid int64 serialization."""
     try:
         history = session.get('classification_history', [])
         if not history:
             return json_response({
                 'success': True,
-                'metrics': {'total': 0, 'fr': 0, 'nfr': 0, 'avg_time': 0},
+                'metrics': {'total': 0, 'fr': 0, 'nfr': 0, 'avg_time': 0.0},
                 'charts': {},
+                'model_summary': [],
                 'recent_activity': []
             })
 
         df = pd.DataFrame(history)
+
+        # Overall metrics (cast to native types)
         total = int(len(df))
-        fr = int(sum(1 for _, row in df.iterrows() if row.get('is_nfr') == 'No'))
-        nfr = int(sum(1 for _, row in df.iterrows() if row.get('is_nfr') == 'Yes'))
-        times = [row.get('processing_time', 0) for _, row in df.iterrows() if 'processing_time' in row]
-        avg_time = float(round(sum(times) / len(times), 3)) if times else 0.0
+        fr = int((df.get('is_nfr') == 'No').sum()) if 'is_nfr' in df else 0
+        nfr = int((df.get('is_nfr') == 'Yes').sum()) if 'is_nfr' in df else 0
+        avg_time = float(round(df['processing_time'].mean(), 3)) if 'processing_time' in df and not df['processing_time'].empty else 0.0
 
         metrics = {'total': total, 'fr': fr, 'nfr': nfr, 'avg_time': avg_time}
-        charts = {'distribution': None, 'models': None}
 
+        # Charts can be added later; keep empty to avoid serialization surprises
+        charts = {}
+
+        # Model-level summary (mirrors flask_app.py format)
+        model_summary = []
+        if 'model' in df.columns:
+            for model, g in df.groupby('model'):
+                total_g = int(len(g))
+                fr_g = int((g.get('is_nfr') == 'No').sum()) if 'is_nfr' in g else 0
+                nfr_g = int((g.get('is_nfr') == 'Yes').sum()) if 'is_nfr' in g else 0
+                correct = int(g.get('is_nfr').value_counts().max()) if 'is_nfr' in g and not g['is_nfr'].empty else 0
+                accuracy = float(round(correct / total_g, 3)) if total_g else 0.0
+
+                model_summary.append({
+                    'model': str(model),
+                    'total': total_g,
+                    'fr': fr_g,
+                    'nfr': nfr_g,
+                    'accuracy': accuracy,
+                    'last_used': str(g['timestamp'].iloc[-1]) if 'timestamp' in g else ''
+                })
+
+        # Recent activity (keep for compatibility, but optional in UI)
         recent_activity = [
             {
                 'timestamp': row.get('timestamp', ''),
@@ -545,7 +570,13 @@ def api_analytics_data():
             for _, row in df.tail(10).iterrows()
         ]
 
-        return json_response({'success': True, 'metrics': metrics, 'charts': charts, 'recent_activity': recent_activity})
+        return json_response({
+            'success': True,
+            'metrics': metrics,
+            'charts': charts,
+            'model_summary': model_summary,
+            'recent_activity': recent_activity
+        })
     except Exception as e:
         logger.exception('api_analytics_data failed')
         return json_response({'error': f'Analytics data failed: {str(e)}'}, status=500)
