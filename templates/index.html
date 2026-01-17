@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="min-h-[80vh] flex flex-col items-center justify-center fade-in">
+
+    <!-- Hero Section -->
+    <div class="text-center mb-16 relative z-10">
+        <h1
+            class="text-6xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 drop-shadow-lg">
+            FR vs NFR
+        </h1>
+        <h2 class="text-4xl font-bold text-gray-800 dark:text-slate-200 tracking-tight">
+            Classification System
+        </h2>
+        <p class="mt-4 text-gray-600 dark:text-slate-400 text-lg max-w-2xl mx-auto">
+            Leverage advanced AI models to automatically classify your user stories<br>into Functional and
+            Non-Functional Requirements.
+        </p>
+    </div>
+
+    <!-- Navigation Options -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl px-4">
+
+        <!-- Single Classification Card -->
+        <a href="{{ url_for('single') }}" class="group relative">
+            <div
+                class="absolute -inset-0.5 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-2xl blur opacity-25 group-hover:opacity-75 transition duration-500">
+            </div>
+            <div
+                class="relative h-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700/50 rounded-2xl p-8 hover:bg-gray-50 dark:hover:bg-slate-800/50 transition duration-300 flex flex-col items-center text-center shadow-lg dark:shadow-none">
+                <div
+                    class="w-16 h-16 rounded-2xl bg-blue-500/10 flex items-center justify-center mb-6 group-hover:scale-110 transition duration-300">
+                    <svg class="w-8 h-8 text-blue-500 dark:text-blue-400" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                    </svg>
+                </div>
+                <h3 class="text-2xl font-semibold text-gray-900 dark:text-white mb-2">Single Classification</h3>
+                <p class="text-gray-500 dark:text-slate-400">Classify individual user stories in real-time using your
+                    preferred AI model
+                    and strategy.</p>
+                <div class="mt-6 flex items-center text-blue-500 dark:text-blue-400 text-sm font-medium">
+                    <span>Start Classification</span>
+                    <svg class="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" fill="none"
+                        stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M17 8l4 4m0 0l-4 4m4-4H3"></path>
+                    </svg>
+                </div>
+            </div>
+        </a>
+
+        <!-- Batch Processing Card -->
+        <a href="{{ url_for('batch') }}" class="group relative">
+            <div
+                class="absolute -inset-0.5 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl blur opacity-25 group-hover:opacity-75 transition duration-500">
+            </div>
+            <div
+                class="relative h-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700/50 rounded-2xl p-8 hover:bg-gray-50 dark:hover:bg-slate-800/50 transition duration-300 flex flex-col items-center text-center shadow-lg dark:shadow-none">
+                <div
+                    class="w-16 h-16 rounded-2xl bg-purple-500/10 flex items-center justify-center mb-6 group-hover:scale-110 transition duration-300">
+                    <svg class="w-8 h-8 text-purple-500 dark:text-purple-400" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
+                        </path>
+                    </svg>
+                </div>
+                <h3 class="text-2xl font-semibold text-gray-900 dark:text-white mb-2">Batch Processing</h3>
+                <p class="text-gray-500 dark:text-slate-400">Process large datasets of user stories efficiently with
+                    bulk classification
+                    tools.</p>
+                <div class="mt-6 flex items-center text-purple-500 dark:text-purple-400 text-sm font-medium">
+                    <span>Start Batch Job</span>
+                    <svg class="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" fill="none"
+                        stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M17 8l4 4m0 0l-4 4m4-4H3"></path>
+                    </svg>
+                </div>
+            </div>
+        </a>
+
+    </div>
+</div>
+{% endblock %}

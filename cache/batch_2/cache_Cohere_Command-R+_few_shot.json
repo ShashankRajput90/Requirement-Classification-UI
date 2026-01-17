@@ -1,0 +1,12 @@
+{
+  "18f21df4a28f0277bed663978ca2d01b": "1. Is NFR: No\n2. NFR Type: -\n3. Reason: Research and development focus",
+  "0390ae9af7c8ee69d9978571b3c63b78": "1. Is NFR: Yes\n2. NFR Type: Performance\n3. Reason: Enhances accuracy and reliability",
+  "f30ac64ef1257e11ebe8dd6c0ef2e406": "1. Is NFR: No\n2. NFR Type: -\n3. Reason: Functional requirement",
+  "1d5a73ed868c7321ea98e2383703ffa7": "1. Is NFR: Yes\n2. NFR Type: Data Integrity\n3. Reason: Emphasizes data accuracy and reliability.",
+  "62c9ab7893ced39e83190ac331ff9143": "1. Is NFR: Yes\n2. NFR Type: Performance\n3. Reason: Timely detection of brand mentions is crucial.",
+  "1dde0aa830bef2b7376f7591b45daeff": "1. Is NFR: Yes\n2. NFR Type: Integration\n3. Reason: Requires data integration with external systems.",
+  "17e375e3e464d3459362ee648a1a3df6": "1. Is NFR: Yes\n2. NFR Type: Performance\n3. Reason: Emphasizes system performance and efficiency",
+  "602a881c8225f1d493913d241a9b29e7": "1. Is NFR: Yes\n2. NFR Type: Performance\n3. Reason: Evaluation of model performance is a non-functional requirement.",
+  "2d75bc16043b04b60cb45c5b20c1826f": "1. Is NFR: Yes\n2. NFR Type: Flexibility\n3. Reason: Adaptability to changing data patterns is essential.",
+  "be5affa750aedfbdb84180b21e6646fc": "1. Is NFR: Yes\n2. NFR Type: Performance\n3. Reason: Focus on system performance and accuracy."
+}

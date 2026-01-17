@@ -1,0 +1,12 @@
+{
+  "55474b587ffe0813a49ecb1bd8e134de": "1. Is NFR: No\n2. NFR Type: N/A\n3. Reason: The given user story describes a functional requirement for exploring machine learning techniques for heart disease diagnosis, not a non-functional requirement.",
+  "6a5b92322e34a5ad15994e5071a2802d": "1. Is NFR: Yes\n2. NFR Type: Performance\n3. Reason: The user story mentions the need to improve the accuracy of food recognition, which is a non-functional requirement related to the system's performance.",
+  "e3cb31bc6ebcb77ff53dc62b888990cb": "1. Is NFR: Yes\n2. NFR Type: Performance\n3. Reason: The user story involves implementing algorithms to improve the performance of the search engine in delivering relevant results.",
+  "1de06536f18431d458164165a315e80a": "1. Is NFR: Yes\n2. NFR Type: Usability\n3. Reason: The user story focuses on the ability to use the FPL API, which is a non-functional requirement.",
+  "ae6959b2c9b76e9be7bff1e1333e8c94": "1. Is NFR: Yes\n2. NFR Type: Security\n3. Reason: The user story describes a non-functional requirement related to monitoring and addressing potential security threats to the brand's reputation.",
+  "2760cfc3190cba90b384f063afbac3fd": "1. Is NFR: Yes\n2. NFR Type: Interoperability\n3. Reason: The user story involves integrating data across systems, which is a non-functional requirement.",
+  "ad458bb5aff94f02624fa30aa725c60d": "1. Is NFR: Yes\n2. NFR Type: Performance\n3. Reason: The user story describes a non-functional requirement related to the performance of autonomous vehicles in terms of fuel efficiency and emissions reduction.",
+  "cd7a2e11408a5f6da0f72d7ac9d63e43": "1. Is NFR: Yes\n2. NFR Type: Performance\n3. Reason: The user story focuses on evaluating the performance of different regression models, which is a non-functional requirement.",
+  "86cc9a01f4ee319dbad1e3ba694d5071": "1. Is NFR: Yes\n2. NFR Type: Flexibility\n3. Reason: The user story describes the need to adjust the model's parameters, which is a non-functional requirement related to the system's ability to adapt to changing conditions.",
+  "73d2a926f403deb3d1727be3b9cd1274": "1. Is NFR: Yes\n2. NFR Type: Performance\n3. Reason: The user story specifies the need for a system with excellent performance in classifying diseases, which is a non-functional requirement."
+}

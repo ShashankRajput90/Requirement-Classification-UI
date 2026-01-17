@@ -1,0 +1,12 @@
+{
+  "4b0fc6b6693f05c0a2ef1432d828ee6d": "1. Is NFR: Yes\n2. NFR Type: Performance\n3. Reason: The user story involves the use of machine learning-based forecasting, which is a non-functional requirement related to the system's performance.",
+  "7ac7c42ea40c54d0f97799dde39fabbe": "1. Is NFR: Yes\n2. NFR Type: Usability\n3. Reason: The user story describes a non-functional requirement related to the usability of the music streaming service, as it aims to provide a personalized recommendation feature based on user listening history.",
+  "48564d86d2a1d5d8222167b5ebd78228": "1. Is NFR: Yes\n2. NFR Type: Performance\n3. Reason: The user story mentions leveraging enhanced models, which implies a need for high-performance processing capabilities.",
+  "a4e8f8a4c4ae277692139ae9eaf84195": "1. Is NFR: Yes\n2. NFR Type: Usability\n3. Reason: The user story describes a non-functional requirement related to the desired user experience and characteristics of the candidates.",
+  "b8f294722af3ba8ba67e6a68e6ea8150": "1. Is NFR: Yes\n2. NFR Type: Usability\n3. Reason: The user story focuses on improving the overall quality of online experiences, which is a non-functional requirement.",
+  "0ab4d0e07454bb6d44618a7809e34370": "1. Is NFR: Yes\n2. NFR Type: Usability\n3. Reason: The user story describes a non-functional requirement related to the usability of the system, as the developer needs to be able to effectively analyze the search results.",
+  "18619da7df04edf06c042ce5368f967e": "1. Is NFR: Yes\n2. NFR Type: Usability\n3. Reason: The user story describes a non-functional requirement related to the system's ability to provide alerts to the user, which is a usability concern.",
+  "12a3056d115aa2c2090da8a722bae229": "1. Is NFR: Yes\n2. NFR Type: Adaptability\n3. Reason: The user story describes the need for the system to adapt to dynamic network behaviors and evolving attacks, which is a non-functional requirement.",
+  "7be7f4e17940cd2ff872b7c10d7e0e61": "1. Is NFR: Yes\n2. NFR Type: Reliability\n3. Reason: The user story emphasizes the need for a reliable system to avoid mistakes in tracing family history.",
+  "59e219708cbd2a3e3d93e3ffc912fec0": "1. Is NFR: Yes\n2. NFR Type: Performance\n3. Reason: The requirement specifies a time-sensitive alert, which is a performance-related non-functional requirement."
+}

@@ -1,0 +1,12 @@
+{
+  "50ed206cbfc13b91867771fe1c8dfe66": "1. Is NFR: No\n2. NFR Type: N/A\n3. Reason: Describes a functional feature, not a quality attribute.",
+  "5ff5ad57886ba6886cc4d2ede1f5dad4": "Is NFR: No  \nNFR Type: N/A  \nReason: The story describes a functional feature (algorithmic improvement), not a non\u2011functional attribute.",
+  "03aab2a4513987010f42894c965eabb5": "Is NFR: No  \nNFR Type: N/A  \nReason: Describes a functional capability (detecting aggressive mentions).",
+  "1c2b50aa1b9af1c4fb4f19c829e0d4f1": "Is NFR: No  \nNFR Type: N/A  \nReason: Describes a functional capability (exploring ML technique) rather than a quality attribute.",
+  "2f78b3a2ea2e62b23224520eeafa8aab": "Is NFR: No  \nNFR Type: N/A  \nReason: The story describes a functional capability (using API data) rather than a quality attribute.",
+  "472d84ba1d5e1a791f3acc1c60f636a4": "1. Is NFR: No\n2. NFR Type: None\n3. Reason: Describes a functional integration feature, not a quality attribute.",
+  "f3d9494ead0bbfb07406b7046b2f4e22": "Is NFR: Yes  \nNFR Type: Performance (Accuracy)  \nReason: Specifies required high AUC values, a quality metric rather than a functional behavior.",
+  "52d8ca29d406c9b1df64f61c81c63714": "Is NFR: No  \nNFR Type: N/A  \nReason: Focuses on functional evaluation of models, not a quality attribute.",
+  "305314486bba37f7589fe149de7c8ee1": "Is NFR: No  \nNFR Type: N/A  \nReason: It specifies a functional capability to adjust model parameters.",
+  "eeb82d2ef44cbf7b60af73d6d96e46c9": "Is NFR: Yes  \nNFR Type: Sustainability  \nReason: Defines a quality attribute (fuel efficiency/emissions reduction) rather than a functional behavior."
+}

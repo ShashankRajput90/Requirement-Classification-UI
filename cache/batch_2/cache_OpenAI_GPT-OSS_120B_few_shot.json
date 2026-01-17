@@ -1,0 +1,12 @@
+{
+  "e67a89a262ae5db055049a4b41f95a98": "1. Is NFR: No\n2. NFR Type: -\n3. Reason: Functional requirement (algorithmic improvement)",
+  "013bf5fd1e976bbd33c006921da17f73": "1. Is NFR: No\n2. NFR Type: -\n3. Reason: Describes a functional capability (exploring ML techniques)",
+  "7720ce9547769e38087f6659a7024763": "1. Is NFR: No\n2. NFR Type: -\n3. Reason: Functional requirement",
+  "5e73dcdea5b0aebb4e6199335a9891b4": "1. Is NFR: No\n2. NFR Type: -\n3. Reason: Functional requirement (data integration)",
+  "5c5ba26c2d95138ae2b7ac3cd537b42a": "1. Is NFR: No\n2. NFR Type: -\n3. Reason: Functional requirement (detecting brand mentions)",
+  "75bfa3df288fe3d5ca1fc8ddd1a21eb1": "1. Is NFR: No\n2. NFR Type: -\n3. Reason: Functional requirement",
+  "f2798ec2afeba8eed7803ed953a38a1f": "1. Is NFR: No\n2. NFR Type: -\n3. Reason: Functional requirement (evaluation task)",
+  "324d8dfd259c4ff7152fa50db9efc5f8": "1. Is NFR: No\n2. NFR Type: -\n3. Reason: Functional requirement",
+  "7b21dd534ce5073215f4a716b5367bc5": "1. Is NFR: Yes\n2. NFR Type: Performance\n3. Reason: Specifies quality attribute of fuel efficiency and emission reduction.",
+  "28ffd0a82586ad012f37009603c94711": "1. Is NFR: Yes\n2. NFR Type: Accuracy\n3. Reason: Defines required diagnostic performance (high AUC) rather than a functional action."
+}

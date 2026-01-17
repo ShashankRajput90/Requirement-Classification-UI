@@ -1,0 +1,12 @@
+{
+  "ca467650496a79fe2039e5a0115a8026": "1. Is NFR: Yes\n2. NFR Type: Performance\n3. Reason: This story requires a specific performance level to accurately forecast playlist popularity.",
+  "9969671ff32afe6393969cff7b6999fe": "1. Is NFR: Yes\n2. NFR Type: Functional\n3. Reason: Recommending songs based on user behavior is a functional requirement for the system.",
+  "ff55edf2b662ca0e27d8ab83018c24b8": "1. Is NFR: Yes\n2. NFR Type: Functional Performance\n3. Reason: The user story describes a desired functionality to improve performance in stance detection.",
+  "c9ca8111db3f660d30c099b104d226c4": "1. Is NFR: Yes\n2. NFR Type: Business\n3. Reason: It focuses on business requirements and desired outcomes.",
+  "a712dff48f2a25446d251090cea0b838": "1. Is NFR: Yes\n2. NFR Type: Usability\n3. Reason: Enhances user experience by improving content differentiation.",
+  "1512e683af438ce53f8de0210293de04": "1. Is NFR: Yes\n2. NFR Type: Security\n3. Reason: Potential bias detection ensures data security and integrity.",
+  "86ba50b8a36d29fa72f6b832c4074936": "1. Is NFR: Yes\n2. NFR Type: Reliability\n3. Reason: The user story requires a reliable system to provide timely alerts for health maintenance.",
+  "85b2b5dbd03b86878350ee31397b7dd9": "1. Is NFR: Yes\n2. NFR Type: Performance\n3. Reason: The user story emphasizes the need for adaptability and rapid response, which are essential performance requirements.",
+  "35891878a1fbed4593fc474475ef656e": "1. Is NFR: Yes\n2. NFR Type: Reliability\n3. Reason: The user requires a dependable solution to ensure accurate results.",
+  "e920e039e60638b73bfd3e67e20d733e": "1. Is NFR: Yes\n2. NFR Type: Reliability\n3. Reason: The user requires a reliable system to ensure timely alerts for health and safety."
+}

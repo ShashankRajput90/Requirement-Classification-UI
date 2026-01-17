@@ -1,0 +1,12 @@
+{
+  "fe1573bccbf1e5f9cf550d4420f772fb": "Is NFR: No  \nNFR Type: N/A  \nReason: Describes a functional search capability, not a quality attribute.",
+  "86573ae5438580c39af3646e76ee22c3": "Is NFR: No  \nNFR Type: N/A  \nReason: Describes a functional feature (ad identification) rather than a quality attribute.",
+  "2c26f43ad1a3da75cbece9e7624c284c": "Is NFR: No\nNFR Type: N/A\nReason: Concerns functional evaluation of the model, not a quality attribute.",
+  "2e2423d7fc42ecc98fb8015b5a4223d8": "Is NFR: No  \nNFR Type: N/A  \nReason: Describes a functional capability (tool usage) rather than a quality attribute.",
+  "fc86ef9e8935b37edde4b85707c92f04": "Is NFR: No  \nNFR Type: N/A  \nReason: The story describes a functional capability (predictive dispatch decisions), not a quality attribute.",
+  "812d05432ce89dc1cb9f22adfc5e6ce3": "Is NFR: No\nNFR Type: None\nReason: Describes functional data integration and analysis, not a quality attribute.",
+  "bfa78da3678cac8e24b08ed88e8706e4": "1. Is NFR: No\n2. NFR Type: N/A\n3. Reason: Describes a functional capability rather than a quality attribute.",
+  "764d750aedc6b077ecbae782bbf89c64": "Is NFR: No  \nNFR Type: N/A  \nReason: Describes a functional capability (incremental learning), not a quality attribute.",
+  "aa3a515ecfc53a4268aaa0344bea7b0f": "Is NFR: No  \nNFR Type: N/A  \nReason: Describes a functional capability (feature) rather than a quality attribute.",
+  "fba6cdb38a10dea5d5bfee5b46c676e2": "Is NFR: No  \nNFR Type: N/A  \nReason: Describes a functional capability to test performance, not a quality attribute."
+}

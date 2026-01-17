@@ -1,0 +1,5 @@
+Metric,Binary_Avg,Type_Avg
+Accuracy,0.592,0.017
+Precision,0.422,0.069
+Recall,0.4,0.071
+F1,0.375,0.068

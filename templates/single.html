@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <!-- Header -->
+    <div class="relative">
+        <a href="{{ url_for('index') }}"
+            class="absolute left-0 top-0 inline-flex items-center text-sm text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors group">
+            <svg class="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor"
+                viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18">
+                </path>
+            </svg>
+            Back to Home
+        </a>
+        <div class="text-center pt-8 md:pt-0">
+            <h2 class="text-3xl font-bold text-gray-900 dark:text-white">Single Classification</h2>
+            <p class="text-gray-600 dark:text-gray-400 mt-2">Analyze individual user stories instantly.</p>
+        </div>
+    </div>
+
+    <div class="max-w-4xl mx-auto space-y-8">
+        <!-- Input Section -->
+        <div>
+            <div class="glass-card p-6 rounded-2xl bg-white/70 dark:bg-slate-800/70">
+                <div class="flex flex-col space-y-4">
+                    <label for="storyInput" class="text-sm font-medium text-gray-700 dark:text-gray-300">User
+                        Story</label>
+                    <textarea id="storyInput" rows="4"
+                        class="w-full themed-input rounded-xl p-4 text-base focus:ring-2 focus:ring-blue-500 transition-all placeholder-gray-400 dark:placeholder-gray-600 resize-none"
+                        placeholder="e.g., As a user, I want to reset my password so that I can regain access to my account."></textarea>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-sm font-medium text-gray-700 dark:text-gray-300">AI Model</label>
+                            <select id="modelSelect" class="w-full mt-1 themed-input rounded-lg p-2.5 text-sm">
+                                <option value="ChatGPT" selected>ChatGPT-4o (via Groq)</option>
+                                <option value="Gemini">Gemini 2.5 Pro</option>
+                                <option value="Claude">Claude 3.5 Sonnet</option>
+                                <option value="Groq">Llama 3 (Groq)</option>
+                                <option value="Cohere">Cohere Command-R+</option>
+                                <option value="Mistral">Mistral (Local)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Prompting
+                                Strategy</label>
+                            <select id="strategySelect" class="w-full mt-1 themed-input rounded-lg p-2.5 text-sm">
+                                <option value="Zero-shot" selected>Zero-shot (Direct)</option>
+                                <option value="Few-shot">Few-shot (With Examples)</option>
+                                <option value="Chain-of-Thought">Chain-of-Thought (Reasoning)</option>
+                                <option value="Role-Based">Role-Based (Expert Persona)</option>
+                                <option value="ReAct">ReAct (Reasoning + Acting)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="pt-2 flex justify-end">
+                        <button onclick="classifyStory()"
+                            class="bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2.5 px-6 rounded-xl transition-all shadow-lg hover:shadow-blue-500/25 flex items-center">
+                            <span>Classify Story</span>
+                            <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loading Indicator -->
+            <div id="statusIndicator" class="hidden flex items-center justify-center p-8">
+                <div class="flex flex-col items-center">
+                    <div class="relative w-16 h-16">
+                        <div class="absolute top-0 left-0 w-full h-full border-4 border-blue-500/30 rounded-full"></div>
+                        <div
+                            class="absolute top-0 left-0 w-full h-full border-4 border-blue-500 rounded-full border-t-transparent animate-spin">
+                        </div>
+                    </div>
+                    <p class="mt-4 text-gray-400 animate-pulse">Analyzing Requirements...</p>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div id="resultArea" class="hidden opacity-0 transition-opacity duration-500 mt-6">
+                <div class="glass-card p-0 rounded-2xl overflow-hidden bg-white/70 dark:bg-slate-800/70">
+                    <div class="p-6 border-b border-gray-200 dark:border-slate-700">
+                        <h3 class="text-xl font-bold text-gray-900 dark:text-white flex items-center">
+                            Classification Result
+                        </h3>
+                    </div>
+                    <div class="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <!-- Left: Main Badge -->
+                        <div
+                            class="flex flex-col items-center justify-center p-6 bg-gray-50 dark:bg-slate-800/50 rounded-2xl border border-gray-100 dark:border-slate-700/50">
+                            <span
+                                class="text-gray-500 dark:text-gray-400 text-sm uppercase tracking-widest font-semibold mb-3">Type</span>
+                            <div id="resBadge"
+                                class="text-2xl font-bold px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700">
+                                --
+                            </div>
+                            <div class="mt-4 text-center">
+                                <span class="text-xs text-gray-400 uppercase font-bold">Category</span>
+                                <p id="resCategory" class="text-lg text-gray-700 dark:text-blue-300 font-medium mt-1">--
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Right: Details -->
+                        <div class="space-y-6">
+                            <div>
+                                <span class="text-xs text-gray-500 dark:text-gray-400 uppercase font-bold">Model
+                                    Used</span>
+                                <div class="flex items-center mt-1">
+                                    <div class="w-2 h-2 rounded-full bg-green-500 mr-2"></div>
+                                    <span id="resModel" class="font-mono text-gray-300">--</span>
+                                    <span class="mx-2 text-gray-600">/</span>
+                                    <span id="resStrategy" class="text-sm text-gray-500 dark:text-gray-400">--</span>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-4">
+                                <!-- Confidence card removed -->
+                                <div
+                                    class="bg-gray-50 dark:bg-slate-900/50 p-3 rounded-lg border border-gray-200 dark:border-slate-700/50">
+                                    <p class="text-xs text-gray-400 uppercase">Latency</p>
+                                    <p id="resLatency" class="text-xl font-bold text-white mt-1">--</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

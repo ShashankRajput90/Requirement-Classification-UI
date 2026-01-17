@@ -1,0 +1,12 @@
+{
+  "8e08667e308091bac24e93d5fde65bab": "1. Is NFR: No\n2. NFR Type: -\n3. Reason: Functional requirement",
+  "d5cdf7edd7c9d1b4be126f72f7ff04ae": "1. Is NFR: No\n2. NFR Type: -\n3. Reason: Functional requirement",
+  "accad254ba9dd0f8d919baf63e3dc91a": "1. Is NFR: No\n2. NFR Type: -\n3. Reason: Functional requirement",
+  "90a3f3bf1e6868af888b5d0f5f28c1a9": "1. Is NFR: No\n2. NFR Type: -\n3. Reason: Functional requirement",
+  "1cd86be1d4e79aed96fdb487e683d135": "1. Is NFR: No\n2. NFR Type: -\n3. Reason: Functional requirement",
+  "f6d9493f0b266378081acf5bf2d737a5": "1. Is NFR: Yes\n2. NFR Type: Usability\n3. Reason: Preventive action support required",
+  "39563d911319bfb9ac04b6e96c59e555": "1. Is NFR: Yes\n2. NFR Type: Usability\n3. Reason: Avoiding user errors",
+  "e8c4a8ae1bb7ba0c9a80a074627ed547": "1. Is NFR: No\n2. NFR Type: -\n3. Reason: Functional requirement",
+  "e6d464e043c1f50abb84b4dc0a84ba33": "1. Is NFR: Yes\n2. NFR Type: Performance\n3. Reason: Adaptability to dynamic network behaviors",
+  "b4a3c0db1f2801a7db20c80527a6ac1f": "1. Is NFR: Yes\n2. NFR Type: Usability\n3. Reason: Preventing serious consequences"
+}

@@ -1,0 +1,12 @@
+{
+  "c4217cf5cf266d9deb45c32b6607da30": "1. Is NFR: No\n2. NFR Type: N/A\n3. Reason: The story describes a specific feature request related to machine learning functionality.",
+  "7136acbd2bc2a50929f2c35bf8932dd0": "1. Is NFR: No\n2. NFR Type: N/A\n3. Reason: The story focuses on a specific feature enhancement, not a non-functional requirement.",
+  "282e00034bc5e22204c7778e07138c5d": "1. Is NFR: No\n2. NFR Type: N/A\n3. Reason: This story describes a new feature, not a non-functional requirement.",
+  "f4eb24b22a2756a52a6a5d044d4efabb": "1. Is NFR: Yes\n2. NFR Type: Data Integrity\n3. Reason: The user requires access to up-to-date and reliable data.",
+  "9fb5b3d653eb9eea9b2b14312f36cd4c": "1. Is NFR: Yes\n2. NFR Type: Security\n3. Reason: Protects brand reputation by addressing negative mentions.",
+  "aaead4b0eda796461badc1f67d3c5291": "1. Is NFR: Yes\n2. NFR Type: Functional\n3. Reason: The story describes a functional requirement to integrate and present data.",
+  "69c48e5c16828e9a7c6c723d36966587": "1. Is NFR: Yes\n2. NFR Type: Environmental\n3. Reason: Emphasizes reducing emissions and pollution.",
+  "626530ffc9636adc7ad4c0b72d4a6695": "1. Is NFR: Yes\n2. NFR Type: Performance\n3. Reason: The user story emphasizes evaluating the performance of models, which is a non-functional requirement.",
+  "623c4506fe468b84eb68966ff11a5709": "1. Is NFR: Yes\n2. NFR Type: Functional\n3. Reason: This story describes a functional requirement related to the system's functionality and user needs.",
+  "2a4cb1b2286dcc4539719e0c5c8a0280": "1. Is NFR: Yes\n2. NFR Type: Performance\n3. Reason: The user story emphasizes the system's performance in achieving high AUC values for accurate disease classification."
+}

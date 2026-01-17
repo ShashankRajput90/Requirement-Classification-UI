@@ -1,0 +1,12 @@
+{
+  "d2a04adac79b9570a884710566e45d9e": "1. Is NFR: No\n2. NFR Type:\n3. Reason:",
+  "b5f108d85c843d7289cc27db29de5f6b": "1. Is NFR: No\n2. NFR Type:\n3. Reason:",
+  "8a4640bdd90e3e16c313cc978e81cc2d": "1. Is NFR: Yes\n2. NFR Type: Usability\n3. Reason: Relevant search results impact user experience.",
+  "393fda342ea9ee5fe0f90ce60218b197": "1. Is NFR: Yes\n2. NFR Type: Usability\n3. Reason: Enhances user experience with accurate information.",
+  "c0e9f99095bc63c2b7d1790c7b11abe5": "1. Is NFR: Yes\n2. NFR Type: Security\n3. Reason: Protecting reputation from negativity.",
+  "8c97c2e22d58dbe760faec112f64d33b": "1. Is NFR: Yes\n2. NFR Type: Usability\n3. Reason: Environmental impact",
+  "d8952c59bc6d8c03b48143566201a1db": "1. Is NFR: No\n2. NFR Type:\n3. Reason:",
+  "3528cd61bb096bbdcbc6034adb8ad660": "1. Is NFR: No\n2. NFR Type:\n3. Reason:",
+  "4e9cfab7e95c62130323b02794dfe78e": "1. Is NFR: Yes\n2. NFR Type: Usability\n3. Reason: Adjusting model parameters for evolving data.",
+  "1234bdd5d4b8b79ff827b0cde97b9b18": "1. Is NFR: Yes\n2. NFR Type: Performance\n3. Reason: Achieving high AUC values."
+}

@@ -1,0 +1,12 @@
+{
+  "9578a2fc62e5c3fabb4c2e4563fc7d7d": "\u274c Cohere Error: The read operation timed out",
+  "26e3c3853c0f898da69ef2f9d081d606": "1. Is NFR: Yes\n2. NFR Type: Performance\n3. Reason: Real-time processing and analysis of user data.",
+  "2a5a3a754de41edfce9554e18b14b53a": "1. Is NFR: Yes\n2. NFR Type: Performance\n3. Reason: Advanced model performance is required for deeper insights.",
+  "cd3d2623942ae0f07c7ea877594cf3cd": "1. Is NFR: Yes\n2. NFR Type: Performance\n3. Reason: Focus on candidate quality and fit.",
+  "fe047a42e17c5f666bc9b1bda9db4cb6": "1. Is NFR: No\n2. NFR Type: -\n3. Reason: Research goal, not a non-functional requirement.",
+  "c5b9a422d92109ed423deca7c54eb48b": "1. Is NFR: Yes\n2. NFR Type: Performance\n3. Reason: Analysis of search results requires efficient processing.",
+  "8319e8b6750eacea7e7cdc1920e8a904": "1. Is NFR: Yes\n2. NFR Type: Reliability\n3. Reason: Timely alerts ensure reliable health management.",
+  "48610c408c5c9fe85f534828aef146a5": "1. Is NFR: Yes\n2. NFR Type: Performance\n3. Reason: Dynamic adaptability and learning capabilities are non-functional requirements.",
+  "fae0a68cd5119cdd3a8b475d55049788": "1. Is NFR: Yes\n2. NFR Type: Data Integrity\n3. Reason: Accurate record matching is essential.",
+  "a7c5b3d67c867c5844f951bced996db2": "1. Is NFR: Yes\n2. NFR Type: Performance\n3. Reason: Timely alerts are crucial for health and safety."
+}
