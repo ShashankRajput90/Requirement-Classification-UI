@@ -1,0 +1,144 @@
+/* Custom Theme Overrides & Utilities */
+
+body {
+    /* Default to Light Mode Colors */
+    background-color: #f8fafc;
+    /* Slate 50 */
+    color: #0f172a;
+    /* Slate 900 */
+    font-family: 'Inter', sans-serif;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Dark Mode Overrides */
+.dark body {
+    background-color: #0f172a;
+    /* Slate 900 */
+    color: #e2e8f0;
+    /* Slate 200 */
+}
+
+/* Glassmorphism Card (Adaptive) */
+.glass-card {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.dark .glass-card {
+    background: rgba(30, 41, 59, 0.7);
+    /* Slate 800 with opacity */
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Sidebar Specifics */
+.sidebar-link {
+    transition: all 0.2s ease-in-out;
+}
+
+.sidebar-link:hover,
+.sidebar-link.active {
+    background: rgba(59, 130, 246, 0.1);
+    /* Blue 500 tint */
+    color: #3b82f6;
+    /* Blue 500 */
+    border-right: 3px solid #3b82f6;
+}
+
+/* Form Elements */
+.themed-input {
+    background-color: #ffffff;
+    border: 1px solid #cbd5e1;
+    /* Slate 300 */
+    color: #0f172a;
+    transition: all 0.2s ease;
+}
+
+.dark .themed-input {
+    background-color: #1e293b;
+    /* Slate 800 */
+    border: 1px solid #334155;
+    /* Slate 700 */
+    color: #f1f5f9;
+}
+
+.themed-input:focus {
+    border-color: #60a5fa;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.2);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f5f9;
+}
+
+.dark ::-webkit-scrollbar-track {
+    background: #0f172a;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+    background: #334155;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+    background: #475569;
+}
+
+/* Animations */
+.fade-in {
+    animation: fadeIn 0.5s ease-out forwards;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Badge specific colors */
+.badge-fr {
+    background-color: rgba(22, 163, 74, 0.1);
+    color: #16a34a;
+    border: 1px solid rgba(22, 163, 74, 0.3);
+}
+
+.dark .badge-fr {
+    background-color: rgba(34, 197, 94, 0.2);
+    color: #4ade80;
+    border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.badge-nfr {
+    background-color: rgba(220, 38, 38, 0.1);
+    color: #dc2626;
+    border: 1px solid rgba(220, 38, 38, 0.3);
+}
+
+.dark .badge-nfr {
+    background-color: rgba(239, 68, 68, 0.2);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}

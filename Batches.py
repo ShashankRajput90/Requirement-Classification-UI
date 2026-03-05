@@ -1,26 +1,17 @@
 import pandas as pd
 import os
-from utils.data_utils import detect_columns, normalize_label
 
 # ======================
 # Step 1: Load dataset
 # ======================
-file_path = "requirements_multiclass_original.csv"
+file_path = "requirements_multiclass_original.csv" 
 df = pd.read_csv(file_path)
-
-# Detect columns
-story_col, label_col = detect_columns(df)
-if not story_col or not label_col:
-    raise ValueError(f"Could not detect user_story or label columns in {file_path}")
-
-# Normalize label column to 'FR'/'NFR'
-df['__normalized_label'] = df[label_col].apply(normalize_label)
 
 # ======================
 # Step 2: Separate Functional and Non-Functional
 # ======================
-functional = df[df['__normalized_label'] == 'FR']
-non_functional = df[df['__normalized_label'] == 'NFR']
+functional = df[df['label'].str.lower() == 'no']
+non_functional = df[df['label'].str.lower() == 'yes']
 
 print("Before balancing:")
 print("Functional:", len(functional))
@@ -43,7 +34,7 @@ else:
 # ======================
 balanced_df = pd.concat([functional_sampled, non_functional_sampled]).sample(frac=1, random_state=42)
 print("\nAfter balancing:")
-print(balanced_df['__normalized_label'].value_counts())
+print(balanced_df['label'].value_counts())
 
 # Save the balanced dataset
 balanced_path = "balanced_user_stories.csv"

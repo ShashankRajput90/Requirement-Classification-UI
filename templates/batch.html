@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="relative">
+        <a href="{{ url_for('index') }}"
+            class="absolute left-0 top-0 inline-flex items-center text-sm text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors group">
+            <svg class="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor"
+                viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18">
+                </path>
+            </svg>
+            Back to Home
+        </a>
+        <div class="text-center pt-8 md:pt-0">
+            <h2 class="text-3xl font-bold text-gray-900 dark:text-white">Batch Processing</h2>
+            <p class="text-gray-600 dark:text-gray-400 mt-2">Classify large datasets seamlessly.</p>
+        </div>
+    </div>
+
+    <!-- Upload Card -->
+    <div class="glass-card rounded-2xl p-8 border-dashed border-2 border-gray-300 dark:border-slate-600 hover:border-blue-500 transition-colors cursor-pointer group relative bg-white/50 dark:bg-slate-800/50"
+        id="dropZone">
+
+        <!-- Default Content -->
+        <div id="uploadPrompt" class="flex flex-col items-center justify-center space-y-4 transition-all">
+            <div class="p-4 bg-gray-100 dark:bg-slate-800 rounded-full group-hover:bg-blue-500/20 transition-colors">
+                <svg class="w-8 h-8 text-blue-500 dark:text-blue-400" fill="none" stroke="currentColor"
+                    viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12">
+                    </path>
+                </svg>
+            </div>
+            <div class="text-center">
+                <p class="text-lg font-medium text-gray-900 dark:text-white">Drop CSV file here or click to upload</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Must contain 'user_story' column</p>
+            </div>
+        </div>
+
+        <!-- File Action Bar (Hidden by default) -->
+        <div id="fileActionBar"
+            class="hidden absolute inset-0 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm flex flex-col items-center justify-center rounded-2xl space-y-4">
+            <div
+                class="flex items-center space-x-3 bg-gray-100 dark:bg-slate-700/50 px-4 py-2 rounded-lg border border-gray-200 dark:border-slate-600">
+                <svg class="w-6 h-6 text-green-500 dark:text-green-400" fill="none" stroke="currentColor"
+                    viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <span id="uploadedFilename" class="text-gray-900 dark:text-white font-medium">filename.csv</span>
+            </div>
+
+            <div class="flex space-x-4">
+                <button id="previewBtn"
+                    class="flex items-center space-x-2 bg-blue-100 dark:bg-blue-600/20 hover:bg-blue-200 dark:hover:bg-blue-600/40 text-blue-600 dark:text-blue-300 px-4 py-2 rounded-lg transition-colors border border-blue-200 dark:border-blue-500/30">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z">
+                        </path>
+                    </svg>
+                    <span>Preview</span>
+                </button>
+                <button id="removeBtn"
+                    class="flex items-center space-x-2 bg-red-100 dark:bg-red-600/20 hover:bg-red-200 dark:hover:bg-red-600/40 text-red-600 dark:text-red-300 px-4 py-2 rounded-lg transition-colors border border-red-200 dark:border-red-500/30">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                        </path>
+                    </svg>
+                    <span>Remove</span>
+                </button>
+            </div>
+        </div>
+
+        <input type="file" id="fileInput" class="hidden" accept=".csv">
+    </div>
+
+    <!-- Preview Modal -->
+    <div id="previewModal"
+        class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+        <div
+            class="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-2xl w-full max-w-4xl max-h-[80vh] flex flex-col shadow-2xl">
+            <div class="p-6 border-b border-gray-200 dark:border-slate-800 flex justify-between items-center">
+                <h3 class="text-xl font-bold text-gray-900 dark:text-white">File Preview</h3>
+                <button onclick="closePreview()"
+                    class="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                        </path>
+                    </svg>
+                </button>
+            </div>
+            <div class="overflow-auto border-t border-gray-200 dark:border-slate-800">
+                <table class="w-full text-left text-sm text-gray-700 dark:text-gray-300">
+                    <thead
+                        class="bg-gray-100 dark:bg-slate-800 text-xs uppercase font-semibold text-gray-500 dark:text-gray-400">
+                        <tr id="previewHeaderRow"></tr>
+                    </thead>
+                    <tbody id="previewBody" class="divide-y divide-gray-200 dark:divide-slate-800"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Controls (Simulated for demo) -->
+    <div class="glass-card rounded-2xl p-6 bg-white/70 dark:bg-slate-800/70">
+        <!-- Configuration -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 border-b border-gray-200 dark:border-slate-700 pb-6">
+            <div>
+                <label
+                    class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider font-semibold">Model</label>
+                <select id="modelSelect" class="w-full mt-1 themed-input rounded-lg p-2 text-sm">
+                    <option value="ChatGPT" selected>ChatGPT-4o (via Groq)</option>
+                    <option value="Gemini">Gemini 2.5 Pro</option>
+                    <option value="Claude">Claude 3.5 Sonnet</option>
+                    <option value="Groq">Llama 3 (Groq)</option>
+                    <option value="Cohere">Cohere Command-R+</option>
+                    <option value="Mistral">Mistral (Local)</option>
+                </select>
+            </div>
+            <div>
+                <label class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider font-semibold">Prompt
+                    Strategy</label>
+                <select id="strategySelect" class="w-full mt-1 themed-input rounded-lg p-2 text-sm">
+                    <option value="Zero-shot" selected>Zero-shot (Direct)</option>
+                    <option value="Few-shot">Few-shot (With Examples)</option>
+                    <option value="Chain-of-Thought">Chain-of-Thought (Reasoning)</option>
+                    <option value="Role-Based">Role-Based (Expert Persona)</option>
+                    <option value="ReAct">ReAct (Reasoning + Acting)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="flex justify-between items-center h-16">
+            <div id="simulateContainerText" class="space-y-1 hidden">
+                <label id="simulateLabel" class="text-sm font-medium text-gray-700 dark:text-gray-300">Select Stories to Process</label>
+                <p id="simulateHelper" class="text-xs text-gray-500">Choose how many stories to run.</p>
+            </div>
+            <div class="flex items-center space-x-4 ml-auto">
+                <div id="simulateContainerSlider" class="flex items-center space-x-4 hidden">
+                    <input type="range" id="volumeSlider" min="1" max="50" value="10" class="w-48 accent-blue-500">
+                    <span id="volumeValue" class="text-gray-900 dark:text-white font-mono w-8">10</span>
+                </div>
+                <button onclick="processBatch()" class="bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg whitespace-nowrap">
+                    Process Batch
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Overview -->
+    <div id="batchResults" class="hidden space-y-6 fade-in">
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="glass-card p-4 rounded-xl bg-white/70 dark:bg-slate-800/70">
+                <p class="text-gray-500 dark:text-gray-400 text-xs uppercase font-bold">Total Processed</p>
+                <p id="totalCount" class="text-2xl font-bold text-gray-900 dark:text-white mt-1">-</p>
+            </div>
+            <div class="glass-card p-4 rounded-xl border-t-4 border-green-500 bg-white/70 dark:bg-slate-800/70">
+                <p class="text-gray-500 dark:text-gray-400 text-xs uppercase font-bold">Functional Count</p>
+                <p id="frCount" class="text-2xl font-bold text-green-600 dark:text-green-400 mt-1">-</p>
+            </div>
+            <div class="glass-card p-4 rounded-xl border-t-4 border-red-500 bg-white/70 dark:bg-slate-800/70">
+                <p class="text-gray-500 dark:text-gray-400 text-xs uppercase font-bold">Non-Functional</p>
+                <p id="nfrCount" class="text-2xl font-bold text-red-600 dark:text-red-400 mt-1">-</p>
+            </div>
+            <div class="glass-card p-4 rounded-xl bg-white/70 dark:bg-slate-800/70">
+                <p class="text-gray-500 dark:text-gray-400 text-xs uppercase font-bold">Avg Response Time</p>
+                <p id="avgTime" class="text-2xl font-bold text-blue-600 dark:text-blue-300 mt-1">-</p>
+            </div>
+        </div>
+
+        <!-- Table -->
+        <div class="glass-card rounded-2xl overflow-hidden bg-white/70 dark:bg-slate-800/70">
+            <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
+                <h3 class="font-semibold text-gray-900 dark:text-white">Detailed Results</h3>
+                <button onclick="exportBatchCSV()" id="exportBtn" disabled
+                    class="flex items-center space-x-2 text-sm text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                    </svg>
+                    <span>Export CSV</span>
+                </button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm text-gray-600 dark:text-gray-400">
+                    <thead
+                        class="bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-gray-200 uppercase font-semibold text-xs">
+                        <tr>
+                            <th class="px-6 py-3">User Story</th>
+                            <th class="px-6 py-3">Type</th>
+                            <th class="px-6 py-3">Category</th>
+                            <th class="px-6 py-3">Reason</th>
+                            <th class="px-6 py-3">Latency</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultsTableBody" class="divide-y divide-gray-200 dark:divide-slate-700">
+                        <!-- Rows injected via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Visualizations -->
+        <div class="grid grid-cols-1 gap-6">
+            <div class="glass-card p-6 rounded-2xl relative bg-white/70 dark:bg-slate-800/70">
+                <h3 class="text-gray-900 dark:text-white font-semibold mb-4 text-center">Requirements Distribution</h3>
+                <div class="relative h-64 w-full">
+                    <canvas id="batchFrChart"></canvas>
+                </div>
+            </div>
+            <div class="glass-card p-6 rounded-2xl relative bg-white/70 dark:bg-slate-800/70">
+                <h3 class="text-gray-900 dark:text-white font-semibold mb-4 text-center">NFR Category Breakdown</h3>
+                <div class="relative h-64 w-full">
+                    <canvas id="batchCatChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Story Classifier | AI Powered</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- Tailwind Configuration for Custom Colors if needed -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        slate: {
+                            850: '#151e32',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <script>
+        // On page load or when changing themes, best to add inline in `head` to avoid FOUC
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark')
+        } else {
+            document.documentElement.classList.remove('dark')
+        }
+
+        function toggleTheme() {
+            if (document.documentElement.classList.contains('dark')) {
+                document.documentElement.classList.remove('dark');
+                localStorage.theme = 'light';
+            } else {
+                document.documentElement.classList.add('dark');
+                localStorage.theme = 'dark';
+            }
+        }
+    </script>
+</head>
+
+<body
+    class="bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100 overflow-hidden transition-colors duration-300">
+
+    <div class="flex h-screen">
+        <!-- Sidebar -->
+        <aside
+            class="w-20 hover:w-64 transition-all duration-300 ease-in-out group bg-white dark:bg-slate-800 border-r border-gray-200 dark:border-slate-700 flex flex-col z-20 overflow-hidden shadow-lg dark:shadow-none">
+            {% include 'sidebar.html' %}
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 overflow-y-auto relative">
+            <!-- Background Gradients -->
+            <div
+                class="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none -z-10 bg-white dark:bg-gray-900">
+                <div
+                    class="absolute top-[-20%] right-[-10%] w-[500px] h-[500px] bg-blue-500/10 dark:bg-blue-600/20 rounded-full blur-[100px]">
+                </div>
+                <div
+                    class="absolute bottom-[-20%] left-[-10%] w-[500px] h-[500px] bg-purple-500/10 dark:bg-purple-600/20 rounded-full blur-[100px]">
+                </div>
+            </div>
+
+            <div class="p-8 max-w-7xl mx-auto">
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+
+    <!-- Global Batch Progress Bar -->
+    <div id="globalBatchProgress" class="fixed bottom-6 right-6 w-80 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-gray-200 dark:border-slate-700 p-4 transition-all duration-300 hidden z-50">
+        <div class="flex justify-between items-center mb-2">
+            <h3 class="text-sm font-bold text-gray-900 dark:text-gray-100 flex items-center">
+                <svg class="w-4 h-4 mr-2 animate-spin text-blue-500" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Processing Batch
+            </h3>
+            <span id="globalBatchProgressText" class="text-xs font-bold text-blue-500">0%</span>
+        </div>
+        <div class="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2 mb-2 overflow-hidden">
+            <div id="globalBatchProgressBar" class="bg-blue-500 h-2 rounded-full transition-all duration-500 ease-out" style="width: 0%"></div>
+        </div>
+        <div class="flex justify-between text-xs text-gray-500 dark:text-gray-400">
+            <span id="globalBatchProgressCount">0 / 0</span>
+            <button id="globalBatchProgressDismiss" class="hover:text-red-500 hidden font-semibold" onclick="dismissGlobalProgress()">Dismiss</button>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+
+</html>

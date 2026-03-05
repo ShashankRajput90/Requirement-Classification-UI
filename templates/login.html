@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login | FR vs NFR Classification</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- Tailwind Configuration -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        slate: {
+                            850: '#151e32',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <script>
+        // Check theme on load
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark')
+        } else {
+            document.documentElement.classList.remove('dark')
+        }
+
+        function toggleTheme() {
+            if (document.documentElement.classList.contains('dark')) {
+                document.documentElement.classList.remove('dark');
+                localStorage.theme = 'light';
+            } else {
+                document.documentElement.classList.add('dark');
+                localStorage.theme = 'dark';
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100 min-h-screen flex items-center justify-center relative overflow-hidden transition-colors duration-300">
+
+    <!-- Background Gradients -->
+    <div class="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none -z-10 bg-white dark:bg-gray-900">
+        <div class="absolute top-[-20%] right-[-10%] w-[500px] h-[500px] bg-blue-500/10 dark:bg-blue-600/20 rounded-full blur-[100px]"></div>
+        <div class="absolute bottom-[-20%] left-[-10%] w-[500px] h-[500px] bg-purple-500/10 dark:bg-purple-600/20 rounded-full blur-[100px]"></div>
+    </div>
+
+    <!-- Login Card -->
+    <div class="w-full max-w-md p-8 glass-card rounded-3xl bg-white/70 dark:bg-slate-800/70 shadow-2xl relative z-10 fade-in border border-gray-200 dark:border-slate-700/50">
+
+        <div class="text-center mb-8 mt-4">
+            <div class="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg mb-4">
+                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                </svg>
+            </div>
+            <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400">Welcome Back</h1>
+            <p class="text-gray-500 dark:text-gray-400 mt-2">Sign in to your account</p>
+        </div>
+
+        <!-- Flash Error Box -->
+        {% if error %}
+        <div class="bg-red-500/20 text-red-400 border border-red-500/30 p-3 rounded-lg mb-4 text-sm font-medium flex items-center shadow-lg">
+            <svg class="w-5 h-5 mr-2 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            {{ error }}
+        </div>
+        {% endif %}
+
+        {% if show_signup %}
+        <!-- Signup Form -->
+        <form action="/signup" method="POST" class="space-y-6">
+            <div>
+                <label for="username" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Choose Username</label>
+                <input type="text" id="username" name="username" class="w-full themed-input rounded-xl p-3 text-base focus:ring-2 focus:ring-blue-500 transition-all placeholder-gray-400 dark:placeholder-gray-600 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700" placeholder="Enter new username" required>
+            </div>
+            <div>
+                <label for="password" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Create Password</label>
+                <input type="password" id="password" name="password" class="w-full themed-input rounded-xl p-3 text-base focus:ring-2 focus:ring-blue-500 transition-all placeholder-gray-400 dark:placeholder-gray-600 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700" placeholder="••••••••" required>
+            </div>
+            <button type="submit" class="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-bold py-3 px-4 rounded-xl transition-all shadow-lg hover:shadow-green-500/25 flex items-center justify-center group">
+                Create Account
+                <svg class="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
+                </svg>
+            </button>
+        </form>
+        <div class="mt-6 text-center text-sm">
+            <p class="text-gray-500 dark:text-gray-400">
+                Already have an account? 
+                <a href="/login" class="font-medium text-blue-500 hover:text-blue-400 transition-colors">Sign in here</a>
+            </p>
+        </div>
+        
+        {% else %}
+        <!-- Login Form -->
+        <form action="/login" method="POST" class="space-y-6">
+            <div>
+                <label for="username" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Username</label>
+                <input type="text" id="username" name="username" class="w-full themed-input rounded-xl p-3 text-base focus:ring-2 focus:ring-blue-500 transition-all placeholder-gray-400 dark:placeholder-gray-600 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700" placeholder="Enter your username" required>
+            </div>
+            <div>
+                <label for="password" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Password</label>
+                <input type="password" id="password" name="password" class="w-full themed-input rounded-xl p-3 text-base focus:ring-2 focus:ring-blue-500 transition-all placeholder-gray-400 dark:placeholder-gray-600 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700" placeholder="••••••••" required>
+            </div>
+            
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <input id="remember_me" name="remember_me" type="checkbox" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded dark:border-slate-600 dark:bg-slate-700 cursor-pointer">
+                    <label for="remember_me" class="ml-2 block text-sm text-gray-700 dark:text-gray-300 cursor-pointer">Remember me</label>
+                </div>
+                <div class="text-sm">
+                    <a href="#" class="font-medium text-blue-500 hover:text-blue-400 transition-colors">Forgot password?</a>
+                </div>
+            </div>
+
+            <button type="submit" class="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold py-3 px-4 rounded-xl transition-all shadow-lg hover:shadow-blue-500/25 flex items-center justify-center group">
+                Sign In
+                <svg class="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+                </svg>
+            </button>
+        </form>
+        
+        <div class="mt-6 text-center text-sm">
+            <p class="text-gray-500 dark:text-gray-400">
+                Don't have an account? 
+                <a href="/signup" class="font-medium text-blue-500 hover:text-blue-400 transition-colors">Sign up</a>
+            </p>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>

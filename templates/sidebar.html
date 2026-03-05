@@ -1,0 +1,110 @@
+<div class="h-20 flex items-center px-4 border-b border-slate-700 overflow-hidden shrink-0">
+    <div class="flex items-center w-full justify-center group-hover:justify-start transition-all">
+        <!-- Logo Icon -->
+        <div
+            class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg shrink-0">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253">
+                </path>
+            </svg>
+        </div>
+        <!-- Text -->
+        <div
+            class="ml-3 opacity-0 group-hover:opacity-100 w-0 group-hover:w-auto transition-all duration-300 whitespace-nowrap overflow-hidden">
+            <h1 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400">
+                FR vs NFR
+                <br>Classification
+            </h1>
+        </div>
+    </div>
+</div>
+
+
+
+<!-- Navigation -->
+<nav class="flex-1 p-4 space-y-2">
+    <a href="{{ url_for('single') }}"
+        class="sidebar-link flex items-center px-4 py-3 rounded-lg text-sm font-medium {% if page == 'single' %}active bg-blue-500/10 text-blue-400 border-r-4 border-blue-500{% else %}text-gray-400 hover:text-white{% endif %} justify-center group-hover:justify-start">
+        <svg class="w-6 h-6 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+        </svg>
+        <span class="ml-3 hidden group-hover:block whitespace-nowrap fade-in">Single Classification</span>
+    </a>
+    <a href="{{ url_for('batch') }}"
+        class="sidebar-link flex items-center px-4 py-3 rounded-lg text-sm font-medium {% if page == 'batch' %}active bg-blue-500/10 text-blue-400 border-r-4 border-blue-500{% else %}text-gray-400 hover:text-white{% endif %} justify-center group-hover:justify-start">
+        <svg class="w-6 h-6 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
+            </path>
+        </svg>
+        <span class="ml-3 hidden group-hover:block whitespace-nowrap fade-in">Batch Processing</span>
+    </a>
+    <a href="{{ url_for('comparison') }}"
+        class="sidebar-link flex items-center px-4 py-3 rounded-lg text-sm font-medium {% if page == 'comparison' %}active bg-blue-500/10 text-blue-400 border-r-4 border-blue-500{% else %}text-gray-400 hover:text-white{% endif %} justify-center group-hover:justify-start">
+        <svg class="w-6 h-6 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z">
+            </path>
+        </svg>
+        <span class="ml-3 hidden group-hover:block whitespace-nowrap fade-in">Model Comparison</span>
+    </a>
+    <a href="{{ url_for('analytics') }}"
+        class="sidebar-link flex items-center px-4 py-3 rounded-lg text-sm font-medium {% if page == 'analytics' %}active bg-blue-500/10 text-blue-400 border-r-4 border-blue-500{% else %}text-gray-400 hover:text-white{% endif %} justify-center group-hover:justify-start">
+        <svg class="w-6 h-6 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+        </svg>
+        <span class="ml-3 hidden group-hover:block whitespace-nowrap fade-in">Analytics Dashboard</span>
+    </a>
+    
+    <a href="{{ url_for('api_dashboard') }}"
+        class="sidebar-link flex items-center px-4 py-3 rounded-lg text-sm font-medium {% if page == 'api_dashboard' %}active bg-blue-500/10 text-blue-400 border-r-4 border-blue-500{% else %}text-gray-400 hover:text-white{% endif %} justify-center group-hover:justify-start">
+        <svg class="w-6 h-6 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <span class="ml-3 hidden group-hover:block whitespace-nowrap fade-in">API Usage & Cost</span>
+    </a>
+    
+
+    
+    {% if session.username %}
+    <a href="/logout"
+        class="sidebar-link mt-8 flex items-center px-4 py-3 rounded-lg text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 justify-center group-hover:justify-start">
+        <svg class="w-6 h-6 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+        </svg>
+        <div class="ml-3 flex flex-col hidden group-hover:flex fade-in whitespace-nowrap overflow-hidden">
+            <span>Logout</span>
+            <span class="text-xs text-gray-500">Hi, {{ session.username }}</span>
+        </div>
+    </a>
+    {% endif %}
+</nav>
+
+<div class="px-6 pb-4">
+    <button onclick="toggleTheme()"
+        class="w-full flex items-center justify-center group-hover:justify-start p-2 rounded-lg text-gray-400 hover:text-white hover:bg-slate-700/50 transition-colors">
+        <!-- Sun Icon (for Dark Mode) -->
+        <svg class="w-5 h-5 hidden dark:block shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z">
+            </path>
+        </svg>
+        <!-- Moon Icon (for Light Mode) -->
+        <svg class="w-5 h-5 block dark:hidden shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+        </svg>
+        <span class="ml-3 text-sm hidden group-hover:block whitespace-nowrap fade-in">Toggle Theme</span>
+    </button>
+</div>
+
+<div class="p-6 border-t border-gray-200 dark:border-slate-700">
+    <div class="flex items-center justify-center group-hover:justify-start w-full transition-all">
+        <div class="h-2 w-2 rounded-full bg-green-500 shrink-0 animate-pulse"></div>
+        <span
+            class="text-xs text-gray-500 dark:text-gray-400 ml-2 hidden group-hover:block whitespace-nowrap overflow-hidden">System
+            Online</span>
+    </div>
+</div>
