@@ -59,6 +59,18 @@
     </a>
 </nav>
 
+<div class="px-6 py-2">
+    <form method="POST" action="{{ url_for('logout') }}" class="w-full">
+        <button type="submit" class="w-full flex items-center justify-center group-hover:justify-start p-2 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors">
+            <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+            </svg>
+            <span class="ml-3 text-sm hidden group-hover:block whitespace-nowrap fade-in">Logout</span>
+        </button>
+    </form>
+</div>
+
 <div class="px-6 pb-4">
     <button onclick="toggleTheme()"
         class="w-full flex items-center justify-center group-hover:justify-start p-2 rounded-lg text-gray-400 hover:text-white hover:bg-slate-700/50 transition-colors">

@@ -1,0 +1,751 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}NFR Classifier{% endblock %}</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet" />
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #0a0b0f;
+      --surface: #0f1117;
+      --surface-2: #161820;
+      --border: rgba(255, 255, 255, 0.06);
+      --border-hi: rgba(255, 255, 255, 0.1);
+      --text: #f0f0f4;
+      --muted: #6b6d7e;
+      --accent: #4f8ef7;
+      --accent-2: #7c6af7;
+      --accent-glow: rgba(79, 142, 247, 0.2);
+      --danger: #f87171;
+      --success: #34d399;
+      --radius: 12px;
+    }
+
+    body {
+      font-family: "Inter", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* ── LEFT BRAND PANEL ─────────────────────────────── */
+    .brand-panel {
+      width: 46%;
+      flex-shrink: 0;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 2.75rem 3rem;
+      overflow: hidden;
+      background: var(--surface);
+    }
+
+    /* Ambient light blobs */
+    .brand-panel .blob {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      pointer-events: none;
+      opacity: 0.55;
+    }
+
+    .blob-1 {
+      width: 380px;
+      height: 380px;
+      background: radial-gradient(circle, rgba(79, 142, 247, 0.35) 0%, transparent 70%);
+      top: -80px;
+      left: -80px;
+      animation: drift 8s ease-in-out infinite alternate;
+    }
+
+    .blob-2 {
+      width: 300px;
+      height: 300px;
+      background: radial-gradient(circle, rgba(124, 106, 247, 0.25) 0%, transparent 70%);
+      bottom: 80px;
+      right: -60px;
+      animation: drift 11s ease-in-out infinite alternate-reverse;
+    }
+
+    .blob-3 {
+      width: 200px;
+      height: 200px;
+      background: radial-gradient(circle, rgba(79, 142, 247, 0.15) 0%, transparent 70%);
+      bottom: -40px;
+      left: 30%;
+      animation: drift 14s ease-in-out infinite alternate;
+    }
+
+    @keyframes drift {
+      from {
+        transform: translate(0, 0) scale(1);
+      }
+
+      to {
+        transform: translate(20px, 15px) scale(1.06);
+      }
+    }
+
+    /* Fine dot grid */
+    .brand-panel::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image: radial-gradient(circle, rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+      background-size: 28px 28px;
+      pointer-events: none;
+      mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 40%, transparent 100%);
+    }
+
+    /* Vertical divider glow */
+    .brand-panel::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 1px;
+      height: 100%;
+      background: linear-gradient(to bottom,
+          transparent 0%,
+          rgba(79, 142, 247, 0.4) 30%,
+          rgba(124, 106, 247, 0.4) 70%,
+          transparent 100%);
+    }
+
+    .brand-logo {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+    }
+
+    .brand-logo-icon {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      box-shadow: 0 0 18px var(--accent-glow);
+    }
+
+    .brand-logo span {
+      font-family: "Inter", sans-serif;
+      font-weight: 700;
+      font-size: 1rem;
+      letter-spacing: -0.01em;
+    }
+
+    .brand-center {
+      position: relative;
+      z-index: 2;
+    }
+
+    .brand-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      background: rgba(79, 142, 247, 0.1);
+      border: 1px solid rgba(79, 142, 247, 0.25);
+      border-radius: 100px;
+      padding: 0.3rem 0.85rem;
+      font-size: 0.73rem;
+      font-weight: 500;
+      color: var(--accent);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 1.4rem;
+    }
+
+    .brand-eyebrow::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 6px var(--accent);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      50% {
+        opacity: 0.5;
+        transform: scale(0.8);
+      }
+    }
+
+    .brand-center h2 {
+      font-family: "Inter", sans-serif;
+      font-size: 2.6rem;
+      font-weight: 800;
+      line-height: 1.12;
+      letter-spacing: -0.04em;
+      color: #fff;
+      margin-bottom: 1rem;
+    }
+
+    .brand-center h2 .gradient-text {
+      background: linear-gradient(135deg, var(--accent), var(--accent-2), #a78bfa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .brand-center p {
+      font-size: 0.9rem;
+      color: rgba(255, 255, 255, 0.55);
+      line-height: 1.65;
+      max-width: 85%;
+      margin-bottom: 2rem;
+    }
+
+    .feature-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .feature-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.85rem;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .feature-item:last-child {
+      border-bottom: none;
+    }
+
+    .feature-icon {
+      width: 30px;
+      height: 30px;
+      flex-shrink: 0;
+      border-radius: 8px;
+      background: var(--surface-2);
+      border: 1px solid var(--border-hi);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      margin-top: 1px;
+    }
+
+    .feature-text strong {
+      display: block;
+      font-size: 0.83rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 0.1rem;
+    }
+
+    .feature-text span {
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    .brand-footer {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand-footer p {
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    .version-badge {
+      font-size: 0.72rem;
+      color: var(--muted);
+      background: var(--surface-2);
+      border: 1px solid var(--border-hi);
+      border-radius: 6px;
+      padding: 0.2rem 0.55rem;
+    }
+
+    /* ── RIGHT FORM PANEL ────────────────────────────── */
+    .form-panel {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2.5rem 2rem;
+      overflow-y: auto;
+      position: relative;
+      background: var(--bg);
+    }
+
+    /* Subtle radial glow behind form */
+    .form-panel::before {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(circle, rgba(79, 142, 247, 0.05) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    /* ── LOGOUT ───────────────────────────────────────── */
+    .logout-btn {
+      position: absolute;
+      top: 1.5rem;
+      right: 1.75rem;
+      z-index: 10;
+      background: transparent;
+      border: 1px solid var(--border-hi);
+      border-radius: 8px;
+      color: var(--muted);
+      font-family: "Inter", sans-serif;
+      font-size: 0.8rem;
+      font-weight: 500;
+      padding: 0.4rem 0.85rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .logout-btn:hover {
+      background: rgba(248, 113, 113, 0.08);
+      border-color: rgba(248, 113, 113, 0.35);
+      color: var(--danger);
+    }
+
+    .logout-btn svg {
+      width: 13px;
+      height: 13px;
+    }
+
+    /* ── FORM CONTAINER ──────────────────────────────── */
+    .form-container {
+      width: 100%;
+      max-width: 380px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .form-header {
+      margin-bottom: 2rem;
+    }
+
+    .form-header h1 {
+      font-family: "Inter", sans-serif;
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      color: #fff;
+      margin-bottom: 0.4rem;
+    }
+
+    .form-header p {
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    /* ── ALERT ───────────────────────────────────────── */
+    .alert-error {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.6rem;
+      background: rgba(248, 113, 113, 0.07);
+      border: 1px solid rgba(248, 113, 113, 0.2);
+      border-radius: 10px;
+      padding: 0.75rem 1rem;
+      margin-bottom: 1.25rem;
+      font-size: 0.83rem;
+      color: var(--danger);
+    }
+
+    .alert-error svg {
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    /* ── FORM GROUPS ─────────────────────────────────── */
+    .form-group {
+      margin-bottom: 0.9rem;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.45);
+      margin-bottom: 0.4rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .input-wrap {
+      position: relative;
+    }
+
+    .input-wrap svg {
+      position: absolute;
+      left: 0.9rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      pointer-events: none;
+      width: 15px;
+      height: 15px;
+      z-index: 10;
+    }
+
+    input[type="text"],
+    input[type="email"],
+    input[type="password"] {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border-hi);
+      border-radius: var(--radius);
+      padding: 0.72rem 2.8rem 0.72rem 2.6rem;
+      font-size: 0.88rem;
+      font-family: "Inter", sans-serif;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+    }
+
+    input:-webkit-autofill,
+    input:-webkit-autofill:hover,
+    input:-webkit-autofill:focus {
+      -webkit-box-shadow: 0 0 0 30px var(--surface) inset !important;
+      -webkit-text-fill-color: var(--text) !important;
+    }
+
+    /* ── EYE ICON BUTTON ─────────────────────────────── */
+    .eye-toggle {
+      position: absolute;
+      right: 0.9rem;
+      top: 50%;
+      transform: translateY(-50%);
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      width: 24px;
+      height: 24px;
+      z-index: 10;
+      transition: color 0.2s;
+    }
+
+    .eye-toggle:hover {
+      color: var(--text);
+    }
+    
+    .eye-toggle svg {
+      width: 16px;
+      height: 16px;
+      /* override the standard left-positioned svg */
+      position: relative;
+      left: 0;
+      top: 0;
+      transform: none;
+    }
+
+    input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+      background: rgba(79, 142, 247, 0.03);
+    }
+
+    input::placeholder {
+      color: #2e3044;
+    }
+
+    /* ── REMEMBER ────────────────────────────────────── */
+    .remember-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .remember-row input[type="checkbox"] {
+      width: 15px;
+      height: 15px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .remember-row label {
+      font-size: 0.82rem;
+      color: var(--muted);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    /* ── PRIMARY BUTTON ──────────────────────────────── */
+    .btn-primary {
+      width: 100%;
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      padding: 0.8rem;
+      font-size: 0.9rem;
+      font-family: "Inter", sans-serif;
+      font-weight: 600;
+      cursor: pointer;
+      letter-spacing: 0.01em;
+      transition: opacity 0.2s, box-shadow 0.2s, transform 0.1s;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 4px 24px rgba(79, 142, 247, 0.3);
+    }
+
+    .btn-primary:hover {
+      opacity: 0.9;
+      box-shadow: 0 6px 30px rgba(79, 142, 247, 0.45);
+    }
+
+    .btn-primary:active {
+      transform: scale(0.99);
+    }
+
+    .btn-primary::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 60%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+      transform: skewX(-20deg);
+      transition: left 0.55s;
+    }
+
+    .btn-primary:hover::after {
+      left: 150%;
+    }
+
+    /* ── DIVIDER ─────────────────────────────────────── */
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin: 1.2rem 0;
+      color: rgba(255, 255, 255, 0.2);
+      font-size: 0.73rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .divider::before,
+    .divider::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: var(--border-hi);
+    }
+
+    /* ── GOOGLE BUTTON ───────────────────────────────── */
+    .btn-google {
+      width: 100%;
+      background: var(--surface);
+      color: rgba(255, 255, 255, 0.65);
+      border: 1px solid var(--border-hi);
+      border-radius: var(--radius);
+      padding: 0.72rem;
+      font-size: 0.88rem;
+      font-family: "Inter", sans-serif;
+      font-weight: 400;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.65rem;
+      text-decoration: none;
+      transition: background 0.2s, border-color 0.2s, color 0.2s;
+    }
+
+    .btn-google:hover {
+      background: var(--surface-2);
+      border-color: rgba(255, 255, 255, 0.18);
+      color: var(--text);
+    }
+
+    .btn-google svg {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+    }
+
+    /* ── AUTH SWITCH ─────────────────────────────────── */
+    .auth-switch {
+      text-align: center;
+      margin-top: 1.6rem;
+      font-size: 0.83rem;
+      color: var(--muted);
+    }
+
+    .auth-switch a {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 500;
+      transition: color 0.15s;
+    }
+
+    .auth-switch a:hover {
+      color: #fff;
+    }
+
+    /* ── LOAD ANIMATION ──────────────────────────────── */
+    .form-container {
+      animation: fadeUp 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+
+    @keyframes fadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(16px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .brand-center {
+      animation: fadeUp 0.5s 0.1s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+
+    /* ── RESPONSIVE ──────────────────────────────────── */
+    @media (max-width: 768px) {
+      .brand-panel {
+        display: none;
+      }
+
+      body {
+        overflow-y: auto;
+      }
+
+      .form-panel {
+        padding: 2rem 1.5rem;
+        min-height: 100vh;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- LEFT: Brand Panel -->
+  <div class="brand-panel">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+
+    <div class="brand-logo">
+      <div class="brand-logo-icon">🧠</div>
+      <span>NFR Classifier</span>
+    </div>
+
+    <div class="brand-center">
+      <div class="brand-eyebrow">Multi-model AI Engine</div>
+      <h2>Classify requirements<br />with <span class="gradient-text">AI precision</span></h2>
+      <p>Multi-model classification engine for functional and non-functional requirements using state-of-the-art
+        prompting techniques.</p>
+
+      <div class="feature-list">
+        <div class="feature-item">
+          <div class="feature-icon">🤖</div>
+          <div class="feature-text">
+            <strong>6 LLM Models</strong>
+            <span>GPT, Claude, Gemini, Groq, Cohere, Mistral</span>
+          </div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon">⚡</div>
+          <div class="feature-text">
+            <strong>5 Prompting Strategies</strong>
+            <span>Zero-shot, Few-shot, CoT & more</span>
+          </div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon">📊</div>
+          <div class="feature-text">
+            <strong>Analytics Dashboard</strong>
+            <span>Latency metrics & category breakdown</span>
+          </div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon">🚀</div>
+          <div class="feature-text">
+            <strong>Batch Processing</strong>
+            <span>Real-time streaming results</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="brand-footer">
+      <p>© 2025 NFR Classifier · All rights reserved</p>
+      <span class="version-badge">v2.0</span>
+    </div>
+  </div>
+
+  <!-- RIGHT: Form Panel -->
+  <div class="form-panel">
+
+    {% if current_user.is_authenticated %}
+    <form method="POST" action="{{ url_for('logout') }}">
+      <button type="submit" class="logout-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+          <polyline points="16 17 21 12 16 7" />
+          <line x1="21" y1="12" x2="9" y2="12" />
+        </svg>
+        Sign out
+      </button>
+    </form>
+    {% endif %}
+
+    <div class="form-container">
+      {% block content %}{% endblock %}
+    </div>
+
+  </div>
+
+</body>
+
+</html>

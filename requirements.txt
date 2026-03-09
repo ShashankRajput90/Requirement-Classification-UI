@@ -1,0 +1,7 @@
+# Add these to your requirements.txt
+flask
+flask-sqlalchemy
+flask-login
+authlib
+psycopg2-binary
+python-dotenv

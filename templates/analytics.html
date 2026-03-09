@@ -10,33 +10,48 @@
 
     </div>
 
+    <div class="mb-6 flex flex-col md:flex-row md:items-center justify-between glass-card p-4 rounded-xl bg-white/70 dark:bg-slate-800/70 border border-gray-200 dark:border-slate-700/50">
+        <label class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 md:mb-0">Select Experiment Run:</label>
+        <select id="runSelector" class="md:min-w-[200px] themed-input rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500">
+            <option value="">All Runs</option>
+        </select>
+    </div>
+
     <!-- Top Stats -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div class="glass-card p-6 rounded-2xl relative overflow-hidden bg-white/70 dark:bg-slate-800/70">
             <div class="absolute -right-4 -top-4 w-24 h-24 bg-blue-500/10 dark:bg-blue-500/20 rounded-full blur-xl">
             </div>
             <p class="text-sm text-gray-500 dark:text-gray-400 uppercase font-bold">Total Stories</p>
-            <p class="text-3xl font-bold text-gray-900 dark:text-white mt-1">1,248</p>
-            <p class="text-xs text-green-600 dark:text-green-400 mt-2">↑ 12% this week</p>
+            <p id="totalStories" class="text-3xl font-bold">0</p>
         </div>
         <div class="glass-card p-6 rounded-2xl relative overflow-hidden bg-white/70 dark:bg-slate-800/70">
             <div class="absolute -right-4 -top-4 w-24 h-24 bg-green-500/10 dark:bg-green-500/20 rounded-full blur-xl">
             </div>
             <p class="text-sm text-gray-500 dark:text-gray-400 uppercase font-bold">Avg Accuracy</p>
-            <p class="text-3xl font-bold text-gray-900 dark:text-white mt-1">94.2%</p>
-            <p class="text-xs text-gray-500 dark:text-gray-500 mt-2">across all models</p>
+            <p id="avgAccuracy" class="text-3xl font-bold">0%</p>
+            <p class="text-xs text-gray-500 dark:text-gray-500 mt-2"></p>
         </div>
         <div class="glass-card p-6 rounded-2xl relative overflow-hidden bg-white/70 dark:bg-slate-800/70">
             <div class="absolute -right-4 -top-4 w-24 h-24 bg-purple-500/10 dark:bg-purple-500/20 rounded-full blur-xl">
             </div>
             <p class="text-sm text-gray-500 dark:text-gray-400 uppercase font-bold">FR Detected</p>
-            <p class="text-3xl font-bold text-gray-900 dark:text-white mt-1">856</p>
+            <p id="frCount" class="text-3xl font-bold">0</p>
         </div>
         <div class="glass-card p-6 rounded-2xl relative overflow-hidden bg-white/70 dark:bg-slate-800/70">
             <div class="absolute -right-4 -top-4 w-24 h-24 bg-red-500/10 dark:bg-red-500/20 rounded-full blur-xl"></div>
             <p class="text-sm text-gray-500 dark:text-gray-400 uppercase font-bold">NFR Detected</p>
-            <p class="text-3xl font-bold text-gray-900 dark:text-white mt-1">392</p>
+            <p id="nfrCount" class="text-3xl font-bold">0</p>
         </div>
+    </div>
+    <div id="analyticsMessage" style="
+        display:none;
+        padding:20px;
+        background:#1e293b;
+        color:#fff;
+        border-radius:12px;
+        text-align:center;
+        margin-bottom:20px;">
     </div>
 
     <!-- Charts Row 1 -->
@@ -49,7 +64,7 @@
         </div>
         <div class="glass-card p-6 rounded-2xl bg-white/70 dark:bg-slate-800/70">
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">NFR Categories</h3>
-            <div class="h-64">
+            <div class="h-96 w-full flex justify-center">
                 <canvas id="nfrCategoryChart"></canvas>
             </div>
         </div>
@@ -58,17 +73,29 @@
     <!-- Charts Row 2 -->
     <div class="glass-card p-6 rounded-2xl bg-white/70 dark:bg-slate-800/70">
         <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Model Latency Performance (ms)</h3>
-        <div class="h-64 w-full">
+        <div style="height:320px; position:relative;">
             <canvas id="latencyChart"></canvas>
         </div>
     </div>
+    <!--  Technique Graph -->
+    <div class="glass-card p-6 rounded-2xl bg-white/70 dark:bg-slate-800/70">
+    <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+        Prompting Technique Comparison
+    </h3>
+    <div class="w-full flex justify-center" style="height:400px; position:relative;">
+        <canvas id="techniqueComparisonChart"></canvas>
+    </div>
+</div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener("DOMContentLoaded", () => {
+    loadRuns();
+    setTimeout(() => {
         initCharts();
-    });
+    }, 300);
+});
 </script>
 {% endblock %}

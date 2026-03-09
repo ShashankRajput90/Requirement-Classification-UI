@@ -1,7 +1,6 @@
 import os
 import re
 import requests
-from flask import Flask, render_template, request
 from groq import Groq
 import google.generativeai as genai
 import cohere
@@ -24,27 +23,78 @@ def clean_response(raw_output: str) -> str:
     if not raw_output:
         return "⚠️ Empty response"
 
-    # Remove hidden reasoning blocks if present
     raw_output = re.sub(r"<think>.*?</think>", "", raw_output, flags=re.DOTALL).strip()
 
-    # Keep only lines starting with "1.", "2.", "3."
-    lines = [line.strip() for line in raw_output.split("\n") if re.match(r"^[1-3]\.", line.strip())]
+    lines = [
+        line.strip()
+        for line in raw_output.split("\n")
+        if re.match(r"^[1-4]\.", line.strip())
+    ]
 
     if lines:
-        return "\n".join(lines[:3])
+        return "\n".join(lines[:4])
     return raw_output.strip()
 
 # =========================
-# Prompting Techniques
+# Prompt Builder
 # =========================
+# def build_prompt(user_story: str, technique: str) -> str:
+#     base_instruction = (
+#         "You are a software engineering assistant.\n"
+#         "Classify the user story as an NFR in exactly 4 lines:\n"
+#         "1. Is NFR: <Yes/No>\n"
+#         "2. NFR Type: <type>\n"
+#         "3. Reason: <short reason>\n"
+#         "4. Confidence: <a number between 0 and 100>\n"
+#         "No extra text."
+#     )
+
+#     technique_prompts = {
+#         "zero_shot": f"{base_instruction}\n\nUser Story: \"{user_story}\"",
+
+#         "few_shot": f"""{base_instruction}
+
+# Examples:
+# - User Story: "The system shall be available 24/7."
+#   1. Is NFR: Yes
+#   2. NFR Type: Availability
+#   3. Reason: Continuous uptime required
+
+# - User Story: "The user can reset password using email."
+#   1. Is NFR: No
+#   2. NFR Type: -
+#   3. Reason: Functional requirement
+
+# Now classify:
+# User Story: "{user_story}"
+# """,
+
+#         "chain_of_thought": f"""{base_instruction}
+# Think step by step internally but output only the 4-line answer.
+# User Story: "{user_story}"
+# """,
+
+#         "role_based": f"""You are an experienced software architect.
+# {base_instruction}
+# User Story: "{user_story}"
+# """,
+
+#         "react": f"""Reason internally and output only the final answer.
+# {base_instruction}
+# User Story: "{user_story}"
+# """
+#     }
+
+#     return technique_prompts.get(technique, technique_prompts["zero_shot"])
 def build_prompt(user_story: str, technique: str) -> str:
     base_instruction = (
         "You are a software engineering assistant.\n"
-        "Classify the user story as an NFR in exactly 3 lines:\n"
+        "Classify the user story as an NFR in exactly 4 lines, no extra text:\n"
         "1. Is NFR: <Yes/No>\n"
-        "2. NFR Type: <type>\n"
-        "3. Reason: <short reason>\n"
-        "No extra text, no hidden reasoning."
+        "2. NFR Type: <type if NFR, else write 'N/A'>\n"
+        "3. Reason: <short reason why it is or is not an NFR>\n"   # ← force reason even for FR
+        "4. Confidence: <number between 0 and 100>\n"
+        "Always fill every line. Never leave a line blank."        # ← explicit instruction
     )
 
     technique_prompts = {
@@ -56,41 +106,105 @@ Examples:
 - User Story: "The system shall be available 24/7."
   1. Is NFR: Yes
   2. NFR Type: Availability
-  3. Reason: Continuous uptime required
+  3. Reason: Specifies an uptime constraint, not a feature
+  4. Confidence: 95
 
 - User Story: "The user can reset password using email."
   1. Is NFR: No
-  2. NFR Type: -
-  3. Reason: Functional requirement
+  2. NFR Type: N/A
+  3. Reason: Describes a user-facing feature, not a quality attribute
+  4. Confidence: 90
 
 Now classify:
-User Story: \"{user_story}\"""",
+User Story: "{user_story}"
+""",
 
-        "chain_of_thought": f"""{base_instruction}
-Think step by step internally, but output only the 3-line answer.
-User Story: \"{user_story}\"""",
+        "chain_of_thought": f"""You are a software engineering assistant.
+Think step by step to decide if the user story is a Non-Functional Requirement (NFR).
+Then output ONLY the following 4 lines, nothing else:
 
-        "role_based": f"""You are an experienced software architect with 10+ years in requirements engineering.
-{base_instruction}
-User Story: \"{user_story}\"""",
+1. Is NFR: <Yes/No>
+2. NFR Type: <type if NFR, else N/A>
+3. Reason: <one sentence>
+4. Confidence: <0-100>
 
-        "react": f"""You will first reason internally, then act.
-Output ONLY the 3-line answer.
-{base_instruction}
-User Story: \"{user_story}\""""
+User Story: "{user_story}"
+""",                                                               # ← removed conflicting instruction
+
+        "role_based": f"""You are an experienced software architect specializing in requirements engineering.
+Classify the following user story. Respond in exactly 4 lines, always filling every field:
+1. Is NFR: <Yes/No>
+2. NFR Type: <type if NFR, else N/A>
+3. Reason: <one sentence explaining your decision>
+4. Confidence: <0-100>
+
+User Story: "{user_story}"
+""",
+
+        "react": f"""Reason internally and output only the final answer.
+Classify the user story in exactly 4 lines, always filling every field:
+1. Is NFR: <Yes/No>
+2. NFR Type: <type if NFR, else N/A>
+3. Reason: <one sentence>
+4. Confidence: <0-100>
+
+User Story: "{user_story}"
+"""
     }
 
     return technique_prompts.get(technique, technique_prompts["zero_shot"])
 
+def handle_llm_exception(provider_name: str, error: Exception):
+    error_message = str(error).lower()
+    
+    if (
+        "winerror 10061" in error_message
+        or "failed to establish a new connection" in error_message
+        or "connection refused" in error_message
+        or "httpconnectionpool" in error_message
+    ):
+        return {
+            "error": f"{provider_name} service is not running. "
+                     f"If using Mistral locally, start Ollama with: 'ollama serve'"
+        }, 503
+
+    # Rate limit detection
+    if "429" in error_message or "rate limit" in error_message:
+        return {
+            "error": f"{provider_name} API rate limit exceeded. Please try again later."
+        }, 429
+
+    # Quota exceeded
+    if "quota" in error_message or "resource_exhausted" in error_message:
+        return {
+            "error": f"{provider_name} API quota exceeded. Please upgrade your plan or try later."
+        }, 429
+
+    # Authentication error
+    if "401" in error_message or "unauthorized" in error_message:
+        return {
+            "error": f"{provider_name} API key is invalid or missing."
+        }, 401
+
+    # Model not found
+    if "model" in error_message and "not found" in error_message:
+        return {
+            "error": f"{provider_name} model not available."
+        }, 400
+
+    # Default
+    return {
+        "error": f"{provider_name} Error: {str(error)}"
+    }, 500
+
 # =========================
-# Model Functions
+# MODEL FUNCTIONS
 # =========================
 def classify_with_groq_deepseek(user_story, technique):
     try:
         client = Groq(api_key=GROQ_API_KEY)
         prompt = build_prompt(user_story, technique)
         response = client.chat.completions.create(
-            # model="deepseek-r1-distill-llama-70b",
             model="openai/gpt-oss-120b",
             messages=[
                 {"role": "system", "content": "You are a helpful assistant."},
@@ -98,14 +212,22 @@ def classify_with_groq_deepseek(user_story, technique):
             ],
             temperature=0.0
         )
-        return clean_response(response.choices[0].message.content)
+
+        result = clean_response(response.choices[0].message.content)
+        return result, 200
+
     except Exception as e:
-        return f"❌ Groq openai/gpt-oss-120b Error: {e}"
+        return handle_llm_exception("Groq GPT-OSS", e)
 
 def classify_with_groq(user_story, technique):
     try:
         url = "https://api.groq.com/openai/v1/chat/completions"
-        headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
+
+        headers = {
+            "Authorization": f"Bearer {GROQ_API_KEY}",
+            "Content-Type": "application/json"
+        }
+
         prompt = build_prompt(user_story, technique)
         data = {
             "model": "llama-3.1-8b-instant",
@@ -118,9 +240,10 @@ def classify_with_groq(user_story, technique):
         response = requests.post(url, headers=headers, json=data)
         response.raise_for_status()
         raw_output = response.json()["choices"][0]["message"]["content"]
-        return clean_response(raw_output)
+        return clean_response(raw_output), 200
+
     except Exception as e:
-        return f"❌ Groq Error: {e}"
+        return handle_llm_exception("Groq LLaMA3", e)
 
 def classify_with_gemini(user_story, technique):
     try:
@@ -128,19 +251,27 @@ def classify_with_gemini(user_story, technique):
         model = genai.GenerativeModel("models/gemini-2.5-pro")
         prompt = build_prompt(user_story, technique)
         response = model.generate_content(prompt)
-        return clean_response(response.text)
+
+        return clean_response(response.text), 200
+
     except Exception as e:
-        return f"❌ Gemini Error: {e}"
+        return handle_llm_exception("Gemini", e)
 
 def classify_with_cohere(user_story, technique):
     try:
         co = cohere.Client(COHERE_API_KEY)
-        message = build_prompt(user_story, technique)
-        response = co.chat(model="command-r-plus-08-2024", message=message)
-        return clean_response(response.text)
-    except Exception as e:
-        return f"❌ Cohere Error: {e}"
+        prompt = build_prompt(user_story, technique)
 
+        response = co.chat(
+            model="command-r-plus-08-2024",
+            message=prompt
+        )
+
+        return clean_response(response.text), 200
+
+    except Exception as e:
+        return handle_llm_exception("Cohere", e)
+    
 def classify_with_claude(user_story, technique):
     try:
         client = Anthropic(api_key=CLAUDE_API_KEY)
@@ -152,56 +283,56 @@ def classify_with_claude(user_story, technique):
             system="You are a helpful assistant for requirements classification.",
             messages=[{"role": "user", "content": prompt}]
         )
-        return clean_response(response.content[0].text)
-    except Exception as e:
-        return f"❌ Claude Error: {e}"
 
-def run_mistral_local(user_input, technique):
+        return clean_response(response.content[0].text), 200
+
+    except Exception as e:
+        return handle_llm_exception("Claude", e)
+
+def run_mistral_local(user_story, technique):
     try:
         MISTRAL_URL = "http://localhost:11434/api/generate"
-        prompt = build_prompt(user_input, technique)
+        prompt = build_prompt(user_story, technique)
+
         response = requests.post(
             MISTRAL_URL,
-            json={"model": "mistral:latest", "prompt": prompt, "stream": False}
+            json={
+                "model": "mistral:latest",
+                "prompt": prompt,
+                "stream": False
+            },
+            timeout=30
         )
-        return clean_response(response.json().get("response", ""))
+
+        response.raise_for_status()
+        data = response.json()
+
+        return clean_response(data.get("response", "")), 200
+
     except Exception as e:
-        return f"❌ Mistral Error: {e}"
+        return handle_llm_exception("Mistral", e)
 
 # =========================
-# Unified wrapper
+# UNIFIED WRAPPER
 # =========================
 def classify(model_name, story, technique):
-    if model_name == "groq_gpt": return classify_with_groq_deepseek(story, technique)
-    if model_name == "groq_llama3": return classify_with_groq(story, technique)
-    if model_name == "gemini": return classify_with_gemini(story, technique)
-    if model_name == "cohere": return classify_with_cohere(story, technique)
-    if model_name == "claude": return classify_with_claude(story, technique)
-    if model_name == "mistral": return run_mistral_local(story, technique)
-    return "❌ Unknown model"
 
-# =========================
-# Flask App
-# =========================
-app = Flask(__name__)
+    if model_name == "groq_gpt":
+        return classify_with_groq_deepseek(story, technique)
 
-@app.route("/", methods=["GET", "POST"])
-def index():
-    result = ""
-    story = ""
-    model_choice = ""
-    technique = "zero_shot"
+    if model_name == "groq_llama3":
+        return classify_with_groq(story, technique)
 
-    if request.method == "POST":
-        story = request.form.get("story", "").strip()
-        model_choice = request.form.get("model")
-        technique = request.form.get("technique", "zero_shot")
+    if model_name == "gemini":
+        return classify_with_gemini(story, technique)
 
-        if story and model_choice:
-            result = classify(model_choice, story, technique)
+    if model_name == "cohere":
+        return classify_with_cohere(story, technique)
 
-    return render_template("index.html", story=story, result=result,
-                           model_choice=model_choice, technique=technique)
+    if model_name == "claude":
+        return classify_with_claude(story, technique)
 
-if __name__ == "__main__":
-    app.run(debug=True)
+    if model_name == "mistral":
+        return run_mistral_local(story, technique)
+
+    return {"error": "Unknown model"}, 500
