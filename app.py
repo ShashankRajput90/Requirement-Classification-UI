@@ -702,6 +702,7 @@ def parse_backend_response(raw_response, model, strategy, latency=0):
             "strategy": strategy,
             "latency": latency,
             "reason": str(raw_response),
+            "step_by_step": "",
             "raw_response": str(raw_response)
         }
 
@@ -709,6 +710,21 @@ def parse_backend_response(raw_response, model, strategy, latency=0):
     category = None
     reason = "No reason provided"
     confidence = 50
+    step_by_step = ""
+
+    # Extract thinking block
+    import re
+    think_match = re.search(r"<think>(.*?)</think>", raw_response, flags=re.DOTALL)
+    if think_match:
+        step_by_step = think_match.group(1).strip()
+    else:
+        # Fallback: Capture everything before "1. Is NFR:"
+        lines_before = []
+        for line in raw_response.split('\n'):
+            if "1. Is NFR:" in line:
+                break
+            lines_before.append(line)
+        step_by_step = "\n".join(lines_before).strip()
 
     lines = raw_response.split('\n')
     for line in lines:
@@ -738,6 +754,7 @@ def parse_backend_response(raw_response, model, strategy, latency=0):
         "strategy": strategy,
         "latency": latency,
         "reason": reason,
+        "step_by_step": step_by_step,
         "raw_response": raw_response
     }
 

@@ -87,6 +87,27 @@ async function classifyStory() {
     document.getElementById("resLatency").textContent = `${data.latency}s`;
     document.getElementById("resReason").innerText = data.reason || "--";
 
+    // Step-by-Step Reasoning
+    const stepByStepContainer = document.getElementById("resStepByStepContainer");
+    const stepByStepEl = document.getElementById("resStepByStep");
+    if (stepByStepContainer && stepByStepEl) {
+      if (data.step_by_step && data.step_by_step.trim() !== "") {
+        // Format the 5 steps to make them bold and readable
+        let formattedReasoning = data.step_by_step
+          .replace(/(Step 1:.*?)(?=\n|$)/g, '<strong class="text-blue-400">$1</strong>')
+          .replace(/(Step 2:.*?)(?=\n|$)/g, '<strong class="text-blue-400">$1</strong>')
+          .replace(/(Step 3:.*?)(?=\n|$)/g, '<strong class="text-blue-400">$1</strong>')
+          .replace(/(Step 4:.*?)(?=\n|$)/g, '<strong class="text-blue-400">$1</strong>')
+          .replace(/(Step 5:.*?)(?=\n|$)/g, '<strong class="text-blue-400">$1</strong>');
+        
+        stepByStepEl.innerHTML = formattedReasoning;
+        stepByStepContainer.classList.remove("hidden");
+      } else {
+        stepByStepContainer.classList.add("hidden");
+        stepByStepEl.innerHTML = "--";
+      }
+    }
+
     const confidence = data.confidence || 50;
     const confEl = document.getElementById("resConfidence");
     if (confEl) {

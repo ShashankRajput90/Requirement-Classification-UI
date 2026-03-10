@@ -23,73 +23,43 @@ def clean_response(raw_output: str) -> str:
     if not raw_output:
         return "⚠️ Empty response"
 
-    raw_output = re.sub(r"<think>.*?</think>", "", raw_output, flags=re.DOTALL).strip()
+    # Capture <think> block if it exists
+    think_match = re.search(r"<think>(.*?)</think>", raw_output, flags=re.DOTALL)
+    think_content = think_match.group(1).strip() if think_match else ""
+
+    # Remove <think> block to get the rest of the text for classification
+    classification_text = re.sub(r"<think>.*?</think>", "", raw_output, flags=re.DOTALL).strip()
 
     lines = [
         line.strip()
-        for line in raw_output.split("\n")
+        for line in classification_text.split("\n")
         if re.match(r"^[1-4]\.", line.strip())
     ]
 
+    final_text = ""
     if lines:
-        return "\n".join(lines[:4])
-    return raw_output.strip()
+        final_text = "\n".join(lines[:4])
+    else:
+        final_text = classification_text.strip()
+        
+    if think_content:
+        return f"<think>\n{think_content}\n</think>\n{final_text}"
+    return final_text
 
 # =========================
 # Prompt Builder
 # =========================
-# def build_prompt(user_story: str, technique: str) -> str:
-#     base_instruction = (
-#         "You are a software engineering assistant.\n"
-#         "Classify the user story as an NFR in exactly 4 lines:\n"
-#         "1. Is NFR: <Yes/No>\n"
-#         "2. NFR Type: <type>\n"
-#         "3. Reason: <short reason>\n"
-#         "4. Confidence: <a number between 0 and 100>\n"
-#         "No extra text."
-#     )
-
-#     technique_prompts = {
-#         "zero_shot": f"{base_instruction}\n\nUser Story: \"{user_story}\"",
-
-#         "few_shot": f"""{base_instruction}
-
-# Examples:
-# - User Story: "The system shall be available 24/7."
-#   1. Is NFR: Yes
-#   2. NFR Type: Availability
-#   3. Reason: Continuous uptime required
-
-# - User Story: "The user can reset password using email."
-#   1. Is NFR: No
-#   2. NFR Type: -
-#   3. Reason: Functional requirement
-
-# Now classify:
-# User Story: "{user_story}"
-# """,
-
-#         "chain_of_thought": f"""{base_instruction}
-# Think step by step internally but output only the 4-line answer.
-# User Story: "{user_story}"
-# """,
-
-#         "role_based": f"""You are an experienced software architect.
-# {base_instruction}
-# User Story: "{user_story}"
-# """,
-
-#         "react": f"""Reason internally and output only the final answer.
-# {base_instruction}
-# User Story: "{user_story}"
-# """
-#     }
-
-#     return technique_prompts.get(technique, technique_prompts["zero_shot"])
 def build_prompt(user_story: str, technique: str) -> str:
     base_instruction = (
         "You are a software engineering assistant.\n"
-        "Classify the user story as an NFR in exactly 4 lines, no extra text:\n"
+        "First, output your internal reasoning process enclosed in `<think>` and `</think>` tags.\n"
+        "In your reasoning, strictly follow these 5 steps:\n"
+        "Step 1: Identify the main requirement in the user story.\n"
+        "Step 2: Determine whether it describes functionality or quality.\n"
+        "Step 3: Compare with NFR definitions.\n"
+        "Step 4: Evaluate whether the story fits an NFR category.\n"
+        "Step 5: Final reasoning conclusion.\n\n"
+        "After the `</think>` tag, classify the user story as an NFR in exactly 4 lines, no extra text:\n"
         "1. Is NFR: <Yes/No>\n"
         "2. NFR Type: <type if NFR, else write 'N/A'>\n"
         "3. Reason: <short reason why it is or is not an NFR>\n"   # ← force reason even for FR
@@ -104,12 +74,36 @@ def build_prompt(user_story: str, technique: str) -> str:
 
 Examples:
 - User Story: "The system shall be available 24/7."
+  <think>
+  Step 1: Identify the main requirement in the user story.
+  The main requirement is that the system must have continuous 24/7 availability.
+  Step 2: Determine whether it describes functionality or quality.
+  This describes how well the system operates (quality), not a specific feature or user action.
+  Step 3: Compare with NFR definitions.
+  NFRs define system attributes such as performance, security, and availability.
+  Step 4: Evaluate whether the story fits an NFR category.
+  The constraint exactly matches the "Availability" category of NFRs.
+  Step 5: Final reasoning conclusion.
+  Since the story dictates an exact uptime requirement of 24/7 and describes a system property, it is an Availability NFR.
+  </think>
   1. Is NFR: Yes
   2. NFR Type: Availability
   3. Reason: Specifies an uptime constraint, not a feature
   4. Confidence: 95
 
 - User Story: "The user can reset password using email."
+  <think>
+  Step 1: Identify the main requirement in the user story.
+  The user wants to be able to reset their password via email.
+  Step 2: Determine whether it describes functionality or quality.
+  This describes a specific action the user can take (a feature/functionality), rather than how the system performs.
+  Step 3: Compare with NFR definitions.
+  NFRs are about system qualities (e.g., speed, security); functional requirements are about what the system does.
+  Step 4: Evaluate whether the story fits an NFR category.
+  This does not fit any NFR category like performance or security; it's a standard user capability.
+  Step 5: Final reasoning conclusion.
+  Because this story describes a specific functional feature of the system, it is a Functional Requirement (not an NFR).
+  </think>
   1. Is NFR: No
   2. NFR Type: N/A
   3. Reason: Describes a user-facing feature, not a quality attribute
@@ -120,8 +114,15 @@ User Story: "{user_story}"
 """,
 
         "chain_of_thought": f"""You are a software engineering assistant.
-Think step by step to decide if the user story is a Non-Functional Requirement (NFR).
-Then output ONLY the following 4 lines, nothing else:
+Think step by step in `<think>...</think>` tags to decide if the user story is a Non-Functional Requirement (NFR).
+In your reasoning, strictly follow these 5 steps:
+Step 1: Identify the main requirement in the user story.
+Step 2: Determine whether it describes functionality or quality.
+Step 3: Compare with NFR definitions.
+Step 4: Evaluate whether the story fits an NFR category.
+Step 5: Final reasoning conclusion.
+
+Then output ONLY the following 4 lines after the think tag:
 
 1. Is NFR: <Yes/No>
 2. NFR Type: <type if NFR, else N/A>
@@ -129,10 +130,18 @@ Then output ONLY the following 4 lines, nothing else:
 4. Confidence: <0-100>
 
 User Story: "{user_story}"
-""",                                                               # ← removed conflicting instruction
+""",
 
         "role_based": f"""You are an experienced software architect specializing in requirements engineering.
-Classify the following user story. Respond in exactly 4 lines, always filling every field:
+Classify the following user story. Output your reasoning in `<think>...</think>` tags first.
+In your reasoning, strictly follow these 5 steps:
+Step 1: Identify the main requirement in the user story.
+Step 2: Determine whether it describes functionality or quality.
+Step 3: Compare with NFR definitions.
+Step 4: Evaluate whether the story fits an NFR category.
+Step 5: Final reasoning conclusion.
+
+Then respond in exactly 4 lines, always filling every field:
 1. Is NFR: <Yes/No>
 2. NFR Type: <type if NFR, else N/A>
 3. Reason: <one sentence explaining your decision>
@@ -141,7 +150,14 @@ Classify the following user story. Respond in exactly 4 lines, always filling ev
 User Story: "{user_story}"
 """,
 
-        "react": f"""Reason internally and output only the final answer.
+        "react": f"""Reason internally in `<think>...</think>` tags and output only the final answer afterwards.
+In your reasoning, strictly follow these 5 steps:
+Step 1: Identify the main requirement in the user story.
+Step 2: Determine whether it describes functionality or quality.
+Step 3: Compare with NFR definitions.
+Step 4: Evaluate whether the story fits an NFR category.
+Step 5: Final reasoning conclusion.
+
 Classify the user story in exactly 4 lines, always filling every field:
 1. Is NFR: <Yes/No>
 2. NFR Type: <type if NFR, else N/A>
