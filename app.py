@@ -44,15 +44,15 @@ def create_batch_run(user_id, model, technique, total_stories):
 
     return batch_run_id
 
-#store batch result in db function 
-def insert_batch_result(batch_run_id, user_id, story, model, classification, category, latency, prompt_tokens, completion_tokens, cost):
+# store batch result in db function 
+def insert_batch_result(batch_run_id, user_id, story, model, classification, category, latency, prompt_tokens, completion_tokens, cost, model_provider, model_version, input_price, output_price):
     conn = get_db_connection()
     cur = conn.cursor()
 
     cur.execute("""
         INSERT INTO batch_results
-        (batch_run_id, user_id, story, model, classification, category, latency, prompt_tokens, completion_tokens, cost)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        (batch_run_id, user_id, story, model, classification, category, latency, prompt_tokens, completion_tokens, cost, model_provider, model_version, input_price, output_price)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """, (
         batch_run_id,
         user_id,
@@ -63,7 +63,11 @@ def insert_batch_result(batch_run_id, user_id, story, model, classification, cat
         latency,
         prompt_tokens,
         completion_tokens,
-        cost
+        cost,
+        model_provider,
+        model_version,
+        input_price,
+        output_price
     ))
 
     conn.commit()
@@ -76,14 +80,43 @@ def insert_batch_result(batch_run_id, user_id, story, model, classification, cat
 
 MODELS = ["groq_gpt", "groq_llama3", "gemini", "cohere", "claude", "mistral"]
 
-MODEL_COSTS = {
-    # Costs per 1M tokens in USD
-    "groq_gpt": {"input": 0.0, "output": 0.0}, # Llama on Groq is typically free tier or very cheap, mock as 0
-    "groq_llama3": {"input": 0.0, "output": 0.0},
-    "gemini": {"input": 0.35, "output": 1.05}, # Gemini 1.5 Flash approx
-    "cohere": {"input": 3.00, "output": 15.00}, # Command R+ approx
-    "claude": {"input": 0.25, "output": 1.25}, # Haiku approx
-    "mistral": {"input": 0.0, "output": 0.0} # Local is free
+MODEL_INFO = {
+    "groq_gpt": {
+        "provider": "Groq", 
+        "version": "openai/gpt-oss-120b",
+        "input": 0.15, 
+        "output": 0.75 
+    },
+    "groq_llama3": {
+        "provider": "Groq", 
+        "version": "llama-3.1-8b-instant",
+        "input": 0.05, 
+        "output": 0.08
+    },
+    "gemini": {
+        "provider": "Google", 
+        "version": "gemini-2.5-pro",
+        "input": 1.25, 
+        "output": 10.00
+    },
+    "cohere": {
+        "provider": "Cohere", 
+        "version": "command-r-plus-08-2024",
+        "input": 3.00, 
+        "output": 15.00
+    },
+    "claude": {
+        "provider": "Anthropic", 
+        "version": "claude-3-haiku-20240307",
+        "input": 0.25, 
+        "output": 1.25
+    },
+    "mistral": {
+        "provider": "Ollama", 
+        "version": "mistral:latest",
+        "input": 0.0, 
+        "output": 0.0
+    }
 }
 
 CATEGORIES = [
@@ -266,12 +299,16 @@ def single():
             # Cost calc
             p_tokens = usage.get("prompt", 0)
             c_tokens = usage.get("completion", 0)
-            rate = MODEL_COSTS.get(backend_model, {"input": 0, "output": 0})
-            cost = (p_tokens * rate["input"] / 1000000) + (c_tokens * rate["output"] / 1000000)
+            model_details = MODEL_INFO.get(backend_model, {"input": 0, "output": 0, "provider": "Unknown", "version": "Unknown"})
+            cost = (p_tokens * model_details["input"] / 1000000) + (c_tokens * model_details["output"] / 1000000)
 
             result = parse_backend_response(raw_response, model, strategy, latency)
             result["usage"] = usage
             result["cost"] = round(cost, 6)
+            result["model_provider"] = model_details["provider"]
+            result["model_version"] = model_details["version"]
+            result["input_price"] = model_details["input"]
+            result["output_price"] = model_details["output"]
             
             return jsonify(result), 200
 
@@ -374,8 +411,8 @@ def batch():
                         
                         p_tokens = usage.get("prompt", 0)
                         c_tokens = usage.get("completion", 0)
-                        rate = MODEL_COSTS.get(backend_model, {"input": 0, "output": 0})
-                        cost = (p_tokens * rate["input"] / 1000000) + (c_tokens * rate["output"] / 1000000)
+                        model_details = MODEL_INFO.get(backend_model, {"input": 0, "output": 0, "provider": "Unknown", "version": "Unknown"})
+                        cost = (p_tokens * model_details["input"] / 1000000) + (c_tokens * model_details["output"] / 1000000)
 
                         batch_results_storage.append(res)
                         insert_batch_result(
@@ -388,7 +425,11 @@ def batch():
                             latency=res.get("latency"),
                             prompt_tokens=p_tokens,
                             completion_tokens=c_tokens,
-                            cost=cost
+                            cost=cost,
+                            model_provider=model_details["provider"],
+                            model_version=model_details["version"],
+                            input_price=model_details["input"],
+                            output_price=model_details["output"]
                         )
                 except Exception as e:
                     pass
