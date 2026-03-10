@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}API Usage & Cost Tracker{% endblock %}
+
+{% block header %}API Usage Dashboard{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- Overview Statistics -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        
+        <!-- Total Cost -->
+        <div class="glass-card rounded-2xl p-6 border border-gray-200 dark:border-slate-700/50 relative overflow-hidden group">
+            <div class="absolute -right-6 -top-6 w-24 h-24 bg-rose-500/10 rounded-full blur-2xl group-hover:bg-rose-500/20 transition-all duration-500"></div>
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Spent</h3>
+                <div class="w-10 h-10 rounded-xl bg-orange-100 dark:bg-rose-500/10 flex items-center justify-center text-rose-600 dark:text-rose-400">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+            </div>
+            <div class="flex items-baseline space-x-2">
+                <h2 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-rose-600 to-orange-500" id="total-cost">$0.00</h2>
+                <span class="text-sm font-medium text-gray-500">USD</span>
+            </div>
+            <p class="text-xs text-gray-500 mt-2">Estimated processing cost</p>
+        </div>
+
+        <!-- Total Tokens -->
+        <div class="glass-card rounded-2xl p-6 border border-gray-200 dark:border-slate-700/50 relative overflow-hidden group">
+            <div class="absolute -right-6 -top-6 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl group-hover:bg-purple-500/20 transition-all duration-500"></div>
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Tokens</h3>
+                <div class="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-500/10 flex items-center justify-center text-purple-600 dark:text-purple-400">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                    </svg>
+                </div>
+            </div>
+            <h2 class="text-3xl font-bold text-gray-800 dark:text-white" id="total-tokens">0</h2>
+            <p class="text-xs text-gray-500 mt-2">Prompt & Completion combined</p>
+        </div>
+
+        <!-- API Calls -->
+        <div class="glass-card rounded-2xl p-6 border border-gray-200 dark:border-slate-700/50 relative overflow-hidden group">
+            <div class="absolute -right-6 -top-6 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl group-hover:bg-blue-500/20 transition-all duration-500"></div>
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">API Calls</h3>
+                <div class="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-500/10 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                    </svg>
+                </div>
+            </div>
+            <h2 class="text-3xl font-bold text-gray-800 dark:text-white" id="total-calls">0</h2>
+            <div class="flex items-center mt-2">
+                <span class="text-xs font-medium text-gray-500" id="avg-cost">Avg ~$0.00/call</span>
+            </div>
+        </div>
+
+        <!-- Success Rate -->
+        <div class="glass-card rounded-2xl p-6 border border-gray-200 dark:border-slate-700/50 relative overflow-hidden group">
+            <div class="absolute -right-6 -top-6 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl group-hover:bg-emerald-500/20 transition-all duration-500"></div>
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Success Rate</h3>
+                <div class="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+            </div>
+            <h2 class="text-3xl font-bold text-gray-800 dark:text-white" id="success-rate">0%</h2>
+            <div class="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-1.5 mt-3">
+                <div class="bg-emerald-500 h-1.5 rounded-full" id="success-bar" style="width: 0%"></div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        fetch("/api/usage_data")
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('total-cost').textContent = '$' + parseFloat(data.total_cost).toFixed(4);
+                
+                // Format tokens with commas securely
+                document.getElementById('total-tokens').textContent = Number(data.total_tokens).toLocaleString();
+                document.getElementById('total-calls').textContent = Number(data.total_calls).toLocaleString();
+                
+                document.getElementById('success-rate').textContent = data.success_rate + '%';
+                document.getElementById('success-bar').style.width = data.success_rate + '%';
+                
+                document.getElementById('avg-cost').textContent = 'Avg ~$' + parseFloat(data.avg_cost).toFixed(6) + '/call';
+            })
+            .catch(error => {
+                console.error("Error fetching usage data:", error);
+                document.getElementById('total-cost').textContent = 'Error';
+            });
+    });
+</script>
+{% endblock %}
