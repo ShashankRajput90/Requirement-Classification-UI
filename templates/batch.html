@@ -133,17 +133,16 @@
             </div>
         </div>
 
-        <div class="flex justify-between items-center h-16">
-            <div id="simulateContainerText" class="space-y-1 hidden">
-                <label id="simulateLabel" class="text-sm font-medium text-gray-700 dark:text-gray-300">Select Stories to Process</label>
-                <p id="simulateHelper" class="text-xs text-gray-500">Choose how many stories to run.</p>
+        <div class="flex justify-between items-center">
+            <div class="space-y-1">
+                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Simulate Volume</label>
+                <p class="text-xs text-gray-500">For demo purposes, choose how many dummy stories to generate.</p>
             </div>
-            <div class="flex items-center space-x-4 ml-auto">
-                <div id="simulateContainerSlider" class="flex items-center space-x-4 hidden">
-                    <input type="range" id="volumeSlider" min="1" max="50" value="10" class="w-48 accent-blue-500">
-                    <span id="volumeValue" class="text-gray-900 dark:text-white font-mono w-8">10</span>
-                </div>
-                <button onclick="processBatch()" class="bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg whitespace-nowrap">
+            <div class="flex items-center space-x-4">
+                <input type="range" id="volumeSlider" min="5" max="50" value="10" class="w-48 accent-blue-500">
+                <span id="volumeValue" class="text-gray-900 dark:text-white font-mono w-8">10</span>
+                <button onclick="processBatch()"
+                    class="bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg ml-4">
                     Process Batch
                 </button>
             </div>
@@ -214,7 +213,7 @@
             </div>
             <div class="glass-card p-6 rounded-2xl relative bg-white/70 dark:bg-slate-800/70">
                 <h3 class="text-gray-900 dark:text-white font-semibold mb-4 text-center">NFR Category Breakdown</h3>
-                <div class="relative h-64 w-full">
+                <div class="relative h-96 w-full flex justify-center">
                     <canvas id="batchCatChart"></canvas>
                 </div>
             </div>

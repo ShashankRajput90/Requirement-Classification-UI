@@ -87,6 +87,27 @@ async function classifyStory() {
     document.getElementById("resLatency").textContent = `${data.latency}s`;
     document.getElementById("resReason").innerText = data.reason || "--";
 
+    // Step-by-Step Reasoning
+    const stepByStepContainer = document.getElementById("resStepByStepContainer");
+    const stepByStepEl = document.getElementById("resStepByStep");
+    if (stepByStepContainer && stepByStepEl) {
+      if (data.step_by_step && data.step_by_step.trim() !== "") {
+        // Format the 5 steps to make them bold and readable
+        let formattedReasoning = data.step_by_step
+          .replace(/(Step 1:.*?)(?=\n|$)/g, '<strong class="text-blue-400">$1</strong>')
+          .replace(/(Step 2:.*?)(?=\n|$)/g, '<strong class="text-blue-400">$1</strong>')
+          .replace(/(Step 3:.*?)(?=\n|$)/g, '<strong class="text-blue-400">$1</strong>')
+          .replace(/(Step 4:.*?)(?=\n|$)/g, '<strong class="text-blue-400">$1</strong>')
+          .replace(/(Step 5:.*?)(?=\n|$)/g, '<strong class="text-blue-400">$1</strong>');
+        
+        stepByStepEl.innerHTML = formattedReasoning;
+        stepByStepContainer.classList.remove("hidden");
+      } else {
+        stepByStepContainer.classList.add("hidden");
+        stepByStepEl.innerHTML = "--";
+      }
+    }
+
     const confidence = data.confidence || 50;
     const confEl = document.getElementById("resConfidence");
     if (confEl) {
@@ -194,41 +215,6 @@ function handleFileSelect(file) {
   if (uploadPrompt)
     uploadPrompt.classList.add("opacity-0", "pointer-events-none"); // Hide prompt
   if (fileActionBar) fileActionBar.classList.remove("hidden");
-  
-  // Actually parse it silently to get the total rows count
-  const reader = new FileReader();
-  reader.onload = function (e) {
-    const text = e.target.result;
-    const lines = text.split("\n").filter((r) => r.trim()); // Remove blanks
-    
-    // The number of stories is lines - 1 (the header)
-    const storyCount = Math.max(0, lines.length - 1);
-    
-    // Toggle UI
-    const simText = document.getElementById("simulateContainerText");
-    const simSlider = document.getElementById("simulateContainerSlider");
-    const csvContainer = document.getElementById("csvCountContainer");
-    const csvDisplay = document.getElementById("csvRowCountDisplay");
-    
-    // Update the slider to reflect the CSV
-    const volumeSlider = document.getElementById("volumeSlider");
-    const volumeValue = document.getElementById("volumeValue");
-    if(volumeSlider) {
-        volumeSlider.max = storyCount;
-        volumeSlider.value = Math.min(volumeSlider.value, storyCount);
-        if(volumeValue) volumeValue.textContent = volumeSlider.value;
-    }
-
-    if (simText) {
-        simText.querySelector("label").textContent = "Select Stories to Process";
-        simText.querySelector("p").textContent = `Found ${storyCount} stories in CSV. Choose how many to run.`;
-        simText.classList.remove("hidden");
-    }
-    if (simSlider) {
-        simSlider.classList.remove("hidden");
-    }
-  };
-  reader.readAsText(file);
 }
 
 function removeFile() {
@@ -236,28 +222,6 @@ function removeFile() {
   if (uploadPrompt)
     uploadPrompt.classList.remove("opacity-0", "pointer-events-none"); // Show prompt
   if (fileActionBar) fileActionBar.classList.add("hidden"); // Hide actions
-  
-  // Re-enable simulate UI to defaults
-  const simText = document.getElementById("simulateContainerText");
-  const simSlider = document.getElementById("simulateContainerSlider");
-  const volumeSlider = document.getElementById("volumeSlider");
-  const volumeValue = document.getElementById("volumeValue");
-  
-  if (volumeSlider) {
-      volumeSlider.max = 50;
-      volumeSlider.value = Math.min(volumeSlider.value, 50);
-      if(volumeValue) volumeValue.textContent = volumeSlider.value;
-  }
-  
-  if (simText) {
-      simText.querySelector("label").textContent = "Select Stories to Process";
-      simText.querySelector("p").textContent = "Choose how many stories to run.";
-      simText.classList.add("hidden");
-  }
-  
-  if (simSlider) {
-      simSlider.classList.add("hidden");
-  }
 }
 
 function previewFile() {
@@ -350,95 +314,101 @@ function setupBatchCharts() {
   Chart.defaults.color = "#94a3b8";
   Chart.defaults.borderColor = "#334155";
 
-  // FR vs NFR
+  // FR vs NFR (Sunburst using Plotly)
   const ctx1 = document.getElementById("batchFrChart");
   if (ctx1) {
-    if (batchFrChart) batchFrChart.destroy();
-    batchFrChart = new Chart(ctx1, {
-      type: "doughnut",
-      data: {
-        labels: ["Functional", "Non-Functional"],
-        datasets: [
-          {
-            data: [0, 0],
-            backgroundColor: ["#10b981", "#ef4444"],
-            borderWidth: 0,
-          },
-        ],
+    // Clear out any existing Chart.js canvas if it exists inside the container
+    // Plotly needs a div, not a canvas, so we will replace the canvas with a div or just draw on the parent container.
+    // For safety, let's create a new div inside the parent if it's currently a canvas, or just use the parent element.
+    const parent = ctx1.parentElement;
+    parent.innerHTML = '<div id="batchFrPlotly" style="width:100%; height:100%;"></div>';
+    
+    // Initial empty data for the Sunburst chart
+    const data = [{
+      type: "sunburst",
+      labels: ["Total", "Functional", "Non-Functional"],
+      parents: ["", "Total", "Total"],
+      values: [0, 0, 0],
+      branchvalues: "total",
+      marker: {
+        colors: ["#1e293b", "#10b981", "#ef4444"]
       },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { position: "right" },
-          tooltip: {
-            callbacks: {
-              label: function (context) {
-                let label = context.label || "";
-                if (label) {
-                  label += ": ";
-                }
-                let value = context.parsed;
-                let total = context.chart._metasets[context.datasetIndex].total;
-                let percentage = Math.round((value / total) * 100) + "%";
-                return label + value + " (" + percentage + ")";
-              },
-            },
-          },
-        },
-      },
-    });
-  }
+      textinfo: "label+value+percent parent",
+      hoverinfo: "label+value+percent root",
+      insidetextfont: { family: "'Inter', sans-serif", size: 14, color: "#ffffff" },
+    }];
 
-  // Categories
+    const layout = {
+      margin: { l: 0, r: 0, b: 0, t: 0 },
+      paper_bgcolor: "transparent",
+      plot_bgcolor: "transparent"
+    };
+
+    Plotly.newPlot('batchFrPlotly', data, layout, {responsive: true, displayModeBar: false});
+    
+    // Keep a reference flag or assign boolean so we know it's plotly now
+    batchFrChart = "plotly"; 
+  }  // Categories (Premium Radar Chart)
   const ctx2 = document.getElementById("batchCatChart");
   if (ctx2) {
     if (batchCatChart) batchCatChart.destroy();
     batchCatChart = new Chart(ctx2, {
-      type: "bar",
+      type: "radar",
       data: {
         labels: [
-          "Accuracy",
-          "Usability",
-          "Performance",
-          "Efficiency",
-          "Security",
-          "Privacy",
-          "Fairness & Bias",
-          "Explainability",
-          "Interpretability",
-          "Transparency",
-          "Accessibility",
-          "Reliability",
-          "Robustness",
-          "Maintainability",
-          "Scalability",
-          "Interoperability",
-          "Completeness & Consistency",
-          "Trust",
-          "Safety & Governance",
+          "Accuracy", "Usability", "Performance", "Efficiency", "Security",
+          "Privacy", "Fairness & Bias", "Explainability", "Interpretability",
+          "Transparency", "Accessibility", "Reliability", "Robustness",
+          "Maintainability", "Scalability", "Interoperability",
+          "Completeness & Consistency", "Trust", "Safety & Governance"
         ],
-        datasets: [
-          {
-            label: "Count",
-            data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            backgroundColor: "#3b82f6",
-            borderRadius: 4,
-          },
-        ],
+        datasets: [{
+          label: "Frequency",
+          data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+          backgroundColor: "rgba(139, 92, 246, 0.25)",
+          borderColor: "#8b5cf6",
+          pointBackgroundColor: "#c4b5fd",
+          pointBorderColor: "#fff",
+          pointHoverBackgroundColor: "#fff",
+          pointHoverBorderColor: "#8b5cf6",
+          borderWidth: 2,
+          fill: true
+        }]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          y: {
-            beginAtZero: true,
-            grid: { color: "#334155" },
-            ticks: { stepSize: 1, precision: 0 },
-          },
+        elements: {
+          line: { tension: 0.3 } // slight curve to the lines
         },
-      },
+        plugins: { 
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: "rgba(15, 23, 42, 0.9)",
+            titleColor: "#f8fafc",
+            bodyColor: "#cbd5e1",
+            borderColor: "rgba(255,255,255,0.1)",
+            borderWidth: 1,
+            padding: 10,
+            displayColors: false
+          }
+        },
+        scales: {
+          r: {
+            angleLines: { color: "rgba(255, 255, 255, 0.06)" },
+            grid: { color: "rgba(255, 255, 255, 0.06)", circular: true },
+            pointLabels: {
+              color: "#94a3b8",
+              font: { family: "'Inter', sans-serif", size: 10, weight: '500' }
+            },
+            ticks: {
+              display: false, // hide inner numbers for a cleaner look
+              stepSize: 1,
+              beginAtZero: true
+            }
+          }
+        }
+      }
     });
   }
 }
@@ -479,165 +449,55 @@ async function processBatch() {
     });
 
     if (!response.ok) {
-        throw new Error(await response.text());
+      const errorText = await response.text();
+      try {
+        const errorJson = JSON.parse(errorText);
+        throw new Error(errorJson.error || "Unknown error occurred");
+      } catch (e) {
+        // If not JSON, use text or status text
+        throw new Error(errorText || response.statusText);
+      }
     }
 
-    const data = await response.json();
-    if (data.status === "started") {
-        localStorage.setItem("activeBatchId", data.batch_run_id);
-        pollBatchProgress();
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+
+      // Process all complete lines
+      for (let i = 0; i < lines.length - 1; i++) {
+        const line = lines[i].trim();
+        if (line) {
+          try {
+            const data = JSON.parse(line);
+            handleStreamData(data);
+          } catch (e) {
+            console.error("Error parsing JSON line:", e);
+          }
+        }
+      }
+      // Keep the last partial line in buffer
+      buffer = lines[lines.length - 1];
+    }
+
+    // Process any remaining buffer
+    if (buffer.trim()) {
+      try {
+        const data = JSON.parse(buffer);
+        handleStreamData(data);
+      } catch (e) {
+        console.error("Error parsing final JSON:", e);
+      }
     }
   } catch (e) {
     console.error(e);
-    if (tableBody) tableBody.innerHTML = '<tr><td colspan="4" class="px-6 py-4 text-center text-red-500">Error starting batch.</td></tr>';
   }
-}
-
-// Global variable to store active interval
-let batchPollInterval = null;
-
-function dismissGlobalProgress() {
-    localStorage.removeItem("activeBatchId");
-    document.getElementById("globalBatchProgress").classList.add("hidden");
-    if (batchPollInterval) clearInterval(batchPollInterval);
-}
-
-function pollBatchProgress() {
-    const batchId = localStorage.getItem("activeBatchId");
-    if (!batchId) return;
-
-    // Show progress bar
-    const progressEl = document.getElementById("globalBatchProgress");
-    const progressText = document.getElementById("globalBatchProgressText");
-    const progressBar = document.getElementById("globalBatchProgressBar");
-    const progressCount = document.getElementById("globalBatchProgressCount");
-    const dismissBtn = document.getElementById("globalBatchProgressDismiss");
-    
-    if (progressEl) {
-        progressEl.classList.remove("hidden");
-        if(dismissBtn) dismissBtn.classList.add("hidden");
-    }
-
-    if (batchPollInterval) clearInterval(batchPollInterval);
-
-    batchPollInterval = setInterval(async () => {
-        try {
-            const res = await fetch(`/api/batch_progress?batch_run_id=${batchId}`);
-            if (!res.ok) throw new Error("Batch progress failed");
-            
-            const data = await res.json();
-            
-            const total = data.total;
-            const processed = data.processed;
-            const percentage = total > 0 ? Math.round((processed / total) * 100) : 0;
-            
-            // Update global UI
-            if (progressText) progressText.textContent = `${percentage}%`;
-            if (progressBar) progressBar.style.width = `${percentage}%`;
-            if (progressCount) progressCount.textContent = `${processed} / ${total}`;
-
-            // Provide synthetic "current_stats" and latest results for batch page
-            const latestResult = data.results && data.results.length > 0 ? data.results[data.results.length - 1] : null;
-            
-            if (latestResult) {
-                // Re-hydrate the format EXPECTED by the existing handleStreamData,
-                // BUT only if we are on the batch page.
-                // Wait, handleStreamData APPENDs to the table. If we poll every 2s, we might miss or duplicate rows!
-                // Let's rewrite the batch page UI update logic here for safety.
-                updateBatchPageUI(data);
-            }
-
-            if (processed >= total && total > 0) {
-                // Done!
-                clearInterval(batchPollInterval);
-                localStorage.removeItem("activeBatchId");
-                
-                if (progressText) progressText.textContent = "100%";
-                if (progressBar) progressBar.style.width = "100%";
-                if (dismissBtn) dismissBtn.classList.remove("hidden");
-                const icon = progressEl ? progressEl.querySelector("svg") : null;
-                if(icon) {
-                    icon.classList.remove("animate-spin", "text-blue-500");
-                    icon.classList.add("text-emerald-500");
-                    icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" stroke="currentColor" d="M5 13l4 4L19 7"></path>';
-                }
-            }
-
-        } catch (e) {
-            console.error("Error polling batch:", e);
-            clearInterval(batchPollInterval);
-        }
-    }, 2000);
-}
-
-// Start polling immediately if on any page and there's an active batch
-document.addEventListener("DOMContentLoaded", () => {
-    if (localStorage.getItem("activeBatchId")) {
-        pollBatchProgress();
-    }
-});
-
-function updateBatchPageUI(data) {
-    const tableBody = document.getElementById("resultsTableBody");
-    if (!tableBody) return; // Not on the batch page
-
-    // Clear "Processing..."
-    if (tableBody.querySelector('td[colspan="4"]')) {
-        tableBody.innerHTML = "";
-    }
-
-    // Refresh overall stats
-    document.getElementById("totalCount").textContent = data.processed;
-    document.getElementById("frCount").textContent = data.fr_count;
-    document.getElementById("nfrCount").textContent = data.nfr_count;
-    document.getElementById("avgTime").textContent = `${data.avg_time}s`;
-
-    // Refresh charts
-    if (batchFrChart) {
-        batchFrChart.data.datasets[0].data = [data.fr_count, data.nfr_count];
-        batchFrChart.update("none");
-    }
-    if (batchCatChart && data.category_counts) {
-        const labels = batchCatChart.data.labels;
-        const newData = labels.map((l) => data.category_counts[l] || 0);
-        batchCatChart.data.datasets[0].data = newData;
-        batchCatChart.update("none");
-    }
-
-    // Rewrite table entirely to avoid duplicates
-    // Using simple approach since this is polled
-    tableBody.innerHTML = "";
-    batchResultsData = []; // rebuild export data
-
-    data.results.forEach(item => {
-        batchResultsData.push({
-            story: item.story,
-            classification: item.classification,
-            category: item.category || "",
-            latency: item.latency,
-            reason: item.reason || "",
-        });
-
-        const row = document.createElement("tr");
-        const isFR = item.classification === "FR";
-        row.innerHTML = `
-            <td class="px-6 py-4 font-medium text-gray-900 dark:text-white">${item.story}</td>
-            <td class="px-6 py-4">
-                <span class="${isFR ? "text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/30" : "text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900/30"} px-2 py-1 rounded text-xs font-bold border ${isFR ? "border-green-200 dark:border-green-500/30" : "border-red-200 dark:border-red-500/30"}">
-                    ${item.classification}
-                </span>
-            </td>
-            <td class="px-6 py-4 text-gray-500 dark:text-gray-400">${item.category || "-"}</td>
-            <td class="px-6 py-4 text-gray-500 dark:text-gray-400 text-sm">${item.reason || "-"}</td>
-            <td class="px-6 py-4 font-mono text-gray-500">${item.latency}s</td>
-        `;
-        tableBody.appendChild(row);
-    });
-
-    const exportBtn = document.getElementById("exportBtn");
-    if (exportBtn && batchResultsData.length > 0) {
-        exportBtn.disabled = false;
-    }
 }
 
 function handleStreamData(data) {
@@ -664,10 +524,16 @@ function handleStreamData(data) {
     document.getElementById("nfrCount").textContent = stats.nfr_count;
     document.getElementById("avgTime").textContent = `${stats.avg_time}s`;
 
-    // Update Charts
-    if (batchFrChart) {
-      batchFrChart.data.datasets[0].data = [stats.fr_count, stats.nfr_count];
-      batchFrChart.update("none");
+    if (batchFrChart === "plotly") {
+      const dataUpdate = {
+        labels: [["Total", "Functional", "Non-Functional"]],
+        parents: [["", "Total", "Total"]],
+        values: [[stats.total, stats.fr_count, stats.nfr_count]]
+      };
+      // We only draw if total > 0 to avoid Plotly errors on 0 layout
+      if (stats.total > 0) {
+        Plotly.update('batchFrPlotly', dataUpdate);
+      }
     }
     if (batchCatChart && stats.category_counts) {
       const labels = batchCatChart.data.labels;
@@ -816,14 +682,11 @@ async function initCharts() {
   Chart.defaults.color = "#94a3b8";
   Chart.defaults.borderColor = "#334155";
 
-  const selectedRun = document.getElementById("runSelector") ? document.getElementById("runSelector").value : "";
-  const daysFilter = document.getElementById("daysFilter") ? document.getElementById("daysFilter").value : "all";
+  const selectedRun = document.getElementById("runSelector").value;
 
   let url = "/api/analytics_data";
-  if (selectedRun) {
+    if (selectedRun) {
     url += `?batch_run_id=${selectedRun}`;
-  } else {
-    url += `?days_filter=${daysFilter}`;
   }
 
   const response = await fetch(url);
@@ -853,21 +716,6 @@ async function initCharts() {
   const selectorEl = document.getElementById("runSelector");
   if(selectorEl) {
       selectorEl.onchange = () => {
-          // If a specific run is chosen, we might want to reset the daysFilter visually, or just respect that run takes priority.
-          if(selectorEl.value) {
-              const df = document.getElementById("daysFilter");
-              if(df) df.value = "all";
-          }
-          initCharts();
-          loadTechniqueComparison();
-      };
-  }
-  
-  const daysFilterEl = document.getElementById("daysFilter");
-  if(daysFilterEl) {
-      daysFilterEl.onchange = () => {
-          // Reset runSelector to "All Runs" if a broad time filter is clicked
-          if(selectorEl) selectorEl.value = "";
           initCharts();
           loadTechniqueComparison();
       };
@@ -890,70 +738,93 @@ async function initCharts() {
   //debugging line for checking data output in console
   console.log("Analytics data:", data);
 
-  // FR vs NFR
+  // FR vs NFR (Sunburst using Plotly)
   const ctx1 = document.getElementById("frNfrChart");
   if (ctx1) {
-    frChart = new Chart(ctx1, {
-      type: "doughnut",
-      data: {
-        labels: ["Functional", "Non-Functional"],
-        datasets: [
-          {
-            data: [fr,nfr],
-            backgroundColor: ["#3b82f6", "#ef4444"],
-            borderWidth: 0,
-          },
-        ],
+    const parent = ctx1.parentElement;
+    parent.innerHTML = '<div id="analyticsFrPlotly" style="width:100%; height:100%;"></div>';
+    
+    const sunburstData = [{
+      type: "sunburst",
+      labels: ["Total", "Functional", "Non-Functional"],
+      parents: ["", "Total", "Total"],
+      values: [data.total, fr, nfr],
+      branchvalues: "total",
+      marker: {
+        colors: ["#1e293b", "#3b82f6", "#ef4444"]
       },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { position: "right" },
-          tooltip: {
-            callbacks: {
-              label: function (context) {
-                let label = context.label || "";
-                if (label) {
-                  label += ": ";
-                }
-                let value = context.parsed;
-                let total = context.chart._metasets[context.datasetIndex].total;
-                let percentage = Math.round((value / total) * 100) + "%";
-                return label + value + " (" + percentage + ")";
-              },
-            },
-          },
-        },
-      },
-    });
+      textinfo: "label+value+percent parent",
+      hoverinfo: "label+value+percent root",
+      insidetextfont: { family: "'Inter', sans-serif", size: 14, color: "#ffffff" },
+    }];
+
+    const layout = {
+      margin: { l: 0, r: 0, b: 0, t: 0 },
+      paper_bgcolor: "transparent",
+      plot_bgcolor: "transparent"
+    };
+
+    // Draw only if we have data to avoid Plotly 0 layout errors
+    if (data.total > 0) {
+      Plotly.newPlot('analyticsFrPlotly', sunburstData, layout, {responsive: true, displayModeBar: false});
+    }
+    frChart = "plotly";
   }
 
-  // NFR Categories
+  // NFR Categories (Premium Radar Chart)
   const ctx2 = document.getElementById("nfrCategoryChart");
   if (ctx2) {
     categoryChart = new Chart(ctx2, {
-      type: "bar",
+      type: "radar",
       data: {
         labels: labels.length ? labels : ["No Data"],
         datasets: [{
-            label: "Count",
+            label: "Category Frequency",
             data: values.length ? values : [0],
-            backgroundColor: "#8b5cf6",
-            borderRadius: 4,},
-        ],
+            backgroundColor: "rgba(139, 92, 246, 0.25)",
+            borderColor: "#8b5cf6",
+            pointBackgroundColor: "#c4b5fd",
+            pointBorderColor: "#fff",
+            pointHoverBackgroundColor: "#fff",
+            pointHoverBorderColor: "#8b5cf6",
+            borderWidth: 2,
+            fill: true
+        }],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          y: {
-            beginAtZero: true,
-            ticks: { stepSize: 1, precision: 0 },
-          },
+        elements: {
+          line: { tension: 0.3 }
         },
-      },
+        plugins: { 
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: "rgba(15, 23, 42, 0.9)",
+            titleColor: "#f8fafc",
+            bodyColor: "#cbd5e1",
+            borderColor: "rgba(255,255,255,0.1)",
+            borderWidth: 1,
+            padding: 10,
+            displayColors: false
+          }
+        },
+        scales: {
+          r: {
+            angleLines: { color: "rgba(255, 255, 255, 0.06)" },
+            grid: { color: "rgba(255, 255, 255, 0.06)", circular: true },
+            pointLabels: {
+              color: "#94a3b8",
+              font: { family: "'Inter', sans-serif", size: 10, weight: '500' }
+            },
+            ticks: {
+              display: false,
+              stepSize: 1,
+              beginAtZero: true
+            }
+          }
+        }
+      }
     });
   }
 
@@ -983,13 +854,9 @@ async function initCharts() {
 //Technique Chart
 async function loadTechniqueComparison() {
   const selectedRun = document.getElementById("runSelector") ? document.getElementById("runSelector").value : "";
-  const daysFilter = document.getElementById("daysFilter") ? document.getElementById("daysFilter").value : "all";
-
   let url = "/api/technique_comparison";
   if (selectedRun) {
     url += `?batch_run_id=${selectedRun}`;
-  } else {
-    url += `?days_filter=${daysFilter}`;
   }
   const res = await fetch(url);
   const data = await res.json();
@@ -1007,20 +874,50 @@ async function loadTechniqueComparison() {
     techniqueChart.destroy();
   }
 
+  // Restructure the data for a Treemap
+  // We want boxes for each Technique, and inside those boxes, FR and NFR
+  const treemapData = [];
+  for(let i=0; i<labels.length; i++) {
+    treemapData.push({ technique: labels[i], type: "Functional (FR)", value: frValues[i] });
+    treemapData.push({ technique: labels[i], type: "Non-Functional (NFR)", value: nfrValues[i] });
+  }
+
   techniqueChart = new Chart(ctx, {
-    type: "bar",
+    type: "treemap",
     data: {
-      labels: labels,
       datasets: [
         {
-          label: "FR",
-          data: frValues,
-          backgroundColor: "#3b82f6"
-        },
-        {
-          label: "NFR",
-          data: nfrValues,
-          backgroundColor: "#ef4444"
+          label: 'Technique Comparison',
+          tree: treemapData,
+          key: "value",
+          groups: ["technique", "type"],
+          backgroundColor: (ctx) => {
+            if (ctx.type !== 'data') return 'transparent';
+            // Color based on FR vs NFR
+            return ctx.raw._data.type === 'Functional (FR)' ? 'rgba(16, 185, 129, 0.8)' : 'rgba(239, 68, 68, 0.8)';
+          },
+          borderColor: '#1e293b',
+          borderWidth: 1,
+          spacing: 1,
+          fontColor: '#ffffff',
+          labels: {
+            display: true,
+            align: 'center',
+            position: 'middle',
+            font: { family: "'Inter', sans-serif", size: 12, weight: 'bold' },
+            color: '#ffffff',
+            formatter: (ctx) => {
+                if(ctx.type !== 'data') return [];
+                return [ctx.raw._data.type, ctx.raw._data.value];
+            }
+          },
+          captions: {
+             display: true,
+             align: 'center',
+             color: '#e2e8f0',
+             font: { family: "'Inter', sans-serif", size: 14, weight: 'bold' },
+             padding: 4
+          }
         }
       ]
     },
@@ -1028,12 +925,24 @@ async function loadTechniqueComparison() {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { position: "top" }
-      },
-      scales: {
-        y: {
-          beginAtZero: true,
-          ticks: { stepSize: 1 }
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: (items) => {
+              if(!items[0]) return '';
+              const r = items[0].raw;
+              // Tooltip logic depending on if hovering over group or leaf
+              return r._data ? r._data.technique : r.g;
+            },
+            label: (item) => {
+              const r = item.raw;
+              if (r._data) {
+                  return `${r._data.type}: ${r._data.value}`;
+              } else {
+                  return `Total: ${r.v}`;
+              }
+            }
+          }
         }
       }
     }

@@ -10,24 +10,11 @@
 
     </div>
 
-    <div class="mb-6 flex flex-col md:flex-row gap-4 justify-between glass-card p-4 rounded-xl bg-white/70 dark:bg-slate-800/70 border border-gray-200 dark:border-slate-700/50">
-        <div class="flex items-center gap-3">
-            <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-            <label class="text-sm font-semibold text-gray-700 dark:text-gray-300">Show by Day (History):</label>
-            <select id="daysFilter" class="themed-input rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 min-w-[150px]">
-                <option value="all">All Time</option>
-                <option value="today">Today</option>
-                <option value="yesterday">Yesterday</option>
-                <option value="7">Last 7 Days</option>
-                <option value="30">Last 30 Days</option>
-            </select>
-        </div>
-        <div class="flex flex-col md:flex-row md:items-center gap-2">
-            <label class="text-sm font-semibold text-gray-700 dark:text-gray-300">Filter by Run:</label>
-            <select id="runSelector" class="themed-input rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 w-full md:min-w-[200px]">
-                <option value="">All Runs</option>
-            </select>
-        </div>
+    <div class="mb-6 flex flex-col md:flex-row md:items-center justify-between glass-card p-4 rounded-xl bg-white/70 dark:bg-slate-800/70 border border-gray-200 dark:border-slate-700/50">
+        <label class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 md:mb-0">Select Experiment Run:</label>
+        <select id="runSelector" class="md:min-w-[200px] themed-input rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500">
+            <option value="">All Runs</option>
+        </select>
     </div>
 
     <!-- Top Stats -->
@@ -77,7 +64,7 @@
         </div>
         <div class="glass-card p-6 rounded-2xl bg-white/70 dark:bg-slate-800/70">
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">NFR Categories</h3>
-            <div class="h-64">
+            <div class="h-96 w-full flex justify-center">
                 <canvas id="nfrCategoryChart"></canvas>
             </div>
         </div>
@@ -95,7 +82,7 @@
     <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
         Prompting Technique Comparison
     </h3>
-    <div style="height:300px; position:relative;">
+    <div class="w-full flex justify-center" style="height:400px; position:relative;">
         <canvas id="techniqueComparisonChart"></canvas>
     </div>
 </div>

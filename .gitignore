@@ -10,8 +10,3 @@ batches/
 # OS files
 .DS_Store
 Thumbs.db
-
-# User Stories
-balanced_user_stories.csv
-ignored_user_stories.csv
-requirements_multiclass_original.csv
