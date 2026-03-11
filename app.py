@@ -651,6 +651,51 @@ def technique_comparison():
 
 
 # =========================
+# API Usage Dashboard Routes
+# =========================
+@app.route('/api_dashboard')
+@login_required
+def api_dashboard():
+    return render_template('api_dashboard.html', page='api_dashboard')
+
+@app.route('/api/usage_data')
+@login_required
+def usage_data():
+    # Currently returning mock data or simple aggregates based on batch_results if possible.
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    
+    # In a fully implemented version, this would join with an api_costs table.
+    # For now, we return basic aggregated metrics.
+    cur.execute("""
+        SELECT COUNT(*) as total_calls,
+               SUM(CASE WHEN classification != 'Error' THEN 1 ELSE 0 END) as successful_calls
+        FROM batch_results
+    """)
+    stats = cur.fetchone()
+    cur.close()
+    conn.close()
+
+    total_calls = stats['total_calls'] if stats['total_calls'] else 0
+    successful_calls = stats['successful_calls'] if stats['successful_calls'] else 0
+    
+    success_rate = round((successful_calls / total_calls * 100)) if total_calls > 0 else 0
+
+    # Mock cost calculation
+    total_tokens = total_calls * 250  # Assuming 250 tokens per call on average
+    avg_cost = 0.0015                 # Dummy avg cost
+    total_cost = total_calls * avg_cost
+
+    return jsonify({
+        "total_cost": total_cost,
+        "total_tokens": total_tokens,
+        "total_calls": total_calls,
+        "success_rate": success_rate,
+        "avg_cost": avg_cost
+    })
+
+
+# =========================
 # Run
 # =========================
 if __name__ == '__main__':

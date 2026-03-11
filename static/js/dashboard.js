@@ -215,6 +215,36 @@ function handleFileSelect(file) {
   if (uploadPrompt)
     uploadPrompt.classList.add("opacity-0", "pointer-events-none"); // Hide prompt
   if (fileActionBar) fileActionBar.classList.remove("hidden");
+
+  // Parse CSV to get total rows
+  const reader = new FileReader();
+  reader.onload = function (e) {
+    const text = e.target.result;
+    const lines = text.split("\n").filter((r) => r.trim()); // Remove blanks
+    const storyCount = Math.max(0, lines.length - 1); // Exclude header
+    
+    const simText = document.getElementById("simulateContainerText");
+    const simSlider = document.getElementById("simulateContainerSlider");
+    const volumeSlider = document.getElementById("volumeSlider");
+    const volumeValue = document.getElementById("volumeValue");
+    
+    if (volumeSlider) {
+        volumeSlider.max = storyCount;
+        volumeSlider.value = Math.min(volumeSlider.value, storyCount);
+        if (volumeValue) volumeValue.textContent = volumeSlider.value;
+    }
+
+    if (simText) {
+        simText.querySelector("label").textContent = "Select Stories to Process";
+        simText.querySelector("p").textContent = `Found ${storyCount} stories in CSV. Choose how many to process.`;
+        simText.classList.remove("hidden");
+    }
+    
+    if (simSlider) {
+        simSlider.classList.remove("hidden");
+    }
+  };
+  reader.readAsText(file);
 }
 
 function removeFile() {
@@ -222,6 +252,28 @@ function removeFile() {
   if (uploadPrompt)
     uploadPrompt.classList.remove("opacity-0", "pointer-events-none"); // Show prompt
   if (fileActionBar) fileActionBar.classList.add("hidden"); // Hide actions
+  
+  // Re-enable simulate UI to defaults
+  const simText = document.getElementById("simulateContainerText");
+  const simSlider = document.getElementById("simulateContainerSlider");
+  const volumeSlider = document.getElementById("volumeSlider");
+  const volumeValue = document.getElementById("volumeValue");
+  
+  if (volumeSlider) {
+      volumeSlider.max = 50;
+      volumeSlider.value = Math.min(volumeSlider.value, 50);
+      if(volumeValue) volumeValue.textContent = volumeSlider.value;
+  }
+  
+  if (simText) {
+      simText.querySelector("label").textContent = "Simulate Volume";
+      simText.querySelector("p").textContent = "For demo purposes, choose how many dummy stories to generate.";
+      simText.classList.add("hidden");
+  }
+  
+  if (simSlider) {
+      simSlider.classList.add("hidden");
+  }
 }
 
 function previewFile() {
