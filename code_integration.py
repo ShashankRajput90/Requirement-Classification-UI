@@ -53,7 +53,7 @@ def build_prompt(user_story: str, technique: str) -> str:
     base_instruction = (
         "You are a software engineering assistant.\n"
         "First, output your internal reasoning process enclosed in `<think>` and `</think>` tags.\n"
-        "In your reasoning, strictly follow these 5 steps:\n"
+        "In your reasoning, strictly follow these 5 steps (leave a blank line between each step):\n"
         "Step 1: Identify the main requirement in the user story.\n"
         "Step 2: Determine whether it describes functionality or quality.\n"
         "Step 3: Compare with NFR definitions.\n"
@@ -77,12 +77,16 @@ Examples:
   <think>
   Step 1: Identify the main requirement in the user story.
   The main requirement is that the system must have continuous 24/7 availability.
+
   Step 2: Determine whether it describes functionality or quality.
   This describes how well the system operates (quality), not a specific feature or user action.
+
   Step 3: Compare with NFR definitions.
   NFRs define system attributes such as performance, security, and availability.
+
   Step 4: Evaluate whether the story fits an NFR category.
   The constraint exactly matches the "Availability" category of NFRs.
+
   Step 5: Final reasoning conclusion.
   Since the story dictates an exact uptime requirement of 24/7 and describes a system property, it is an Availability NFR.
   </think>
@@ -95,12 +99,16 @@ Examples:
   <think>
   Step 1: Identify the main requirement in the user story.
   The user wants to be able to reset their password via email.
+
   Step 2: Determine whether it describes functionality or quality.
   This describes a specific action the user can take (a feature/functionality), rather than how the system performs.
+
   Step 3: Compare with NFR definitions.
   NFRs are about system qualities (e.g., speed, security); functional requirements are about what the system does.
+
   Step 4: Evaluate whether the story fits an NFR category.
   This does not fit any NFR category like performance or security; it's a standard user capability.
+
   Step 5: Final reasoning conclusion.
   Because this story describes a specific functional feature of the system, it is a Functional Requirement (not an NFR).
   </think>

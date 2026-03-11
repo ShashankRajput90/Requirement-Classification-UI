@@ -153,6 +153,22 @@ async function classifyStory() {
   }
 }
 
+function clearSingleClassification() {
+  const storyInput = document.getElementById("storyInput");
+  const resultArea = document.getElementById("resultArea");
+  const errorBanner = document.getElementById("errorBanner");
+  const loadingArea = document.getElementById("loadingArea");
+
+  if (storyInput) storyInput.value = "";
+  if (resultArea) {
+    resultArea.classList.add("hidden");
+    resultArea.classList.remove("opacity-100");
+    resultArea.classList.add("opacity-0");
+  }
+  if (errorBanner) errorBanner.classList.add("hidden");
+  if (loadingArea) loadingArea.classList.add("hidden");
+}
+
 // --- File Upload Logic ---
 const dropZone = document.getElementById("dropZone");
 const fileInput = document.getElementById("fileInput");
@@ -662,46 +678,172 @@ function exportBatchCSV() {
 }
 
 // --- Comparison Logic ---
-async function loadComparisonData() {
-  const tableBody = document.getElementById("comparisonTableBody");
-  if (!tableBody) return;
+async function runModelComparison() {
+  const storyInput = document.getElementById("compareStoryInput");
+  const strategyInput = document.getElementById("compareStrategySelect");
+  const checkboxes = document.querySelectorAll("#compareModelCheckboxes input[type='checkbox']:checked");
+  const errorBanner = document.getElementById("compareErrorBanner");
+  const errorText = document.getElementById("compareErrorText");
+  const resultsArea = document.getElementById("compareResultsArea");
+  const cardsContainer = document.getElementById("compareCardsContainer");
+  const runBtn = document.getElementById("runCompareBtn");
 
-  tableBody.innerHTML =
-    '<tr><td colspan="6" class="px-6 py-4 text-center">Loading benchmark data...</td></tr>';
+  // Basic Validation
+  if (!storyInput.value.trim()) {
+    showCompareError("Please enter a user story to compare.");
+    return;
+  }
+  if (checkboxes.length < 2) {
+    showCompareError("Minimum 2 models required to compare.");
+    return;
+  }
 
-  try {
-    const response = await fetch("/api/comparison-data");
-    const data = await response.json();
+  // Clear errors and show loading state
+  if (errorBanner) errorBanner.classList.add("hidden");
+  resultsArea.classList.remove("hidden");
+  cardsContainer.innerHTML = "";
+  
+  const selectedModels = Array.from(checkboxes).map(cb => ({
+    value: cb.value,
+    label: cb.nextElementSibling.textContent.trim()
+  }));
+  const strategy = strategyInput.value;
+  const story = storyInput.value.trim();
 
-    tableBody.innerHTML = "";
+  runBtn.disabled = true;
+  runBtn.innerHTML = '<svg class="animate-spin h-5 w-5 mr-3" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Running...';
 
-    let bestModel = data[0]; // Assumes sorted by backend
+  // Create loading cards for each selected model
+  selectedModels.forEach(model => {
+    const card = document.createElement("div");
+    card.id = `compare-card-${model.value}`;
+    card.className = "glass-card rounded-2xl overflow-hidden bg-white/70 dark:bg-slate-800/70 opacity-50 transition-opacity duration-300 flex flex-col h-full";
+    card.innerHTML = `
+      <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50/50 dark:bg-slate-800/30 flex justify-between items-center">
+        <h4 class="font-bold text-gray-900 dark:text-white flex items-center">
+            <svg class="w-4 h-4 mr-2 text-blue-500 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            ${model.label}
+        </h4>
+      </div>
+      <div class="p-6 flex-grow flex items-center justify-center">
+        <p class="text-sm text-gray-400 animate-pulse">Waiting for response...</p>
+      </div>
+    `;
+    cardsContainer.appendChild(card);
+  });
 
-    data.forEach((row, index) => {
-      const tr = document.createElement("tr");
-      if (index === 0)
-        tr.className = "bg-green-500/10 border-l-4 border-green-500";
+  // Run requests concurrently
+  const promises = selectedModels.map(async (model) => {
+    try {
+      const response = await fetch("/single", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ story, model: model.value, strategy })
+      });
+      
+      const data = await response.json();
+      const card = document.getElementById(`compare-card-${model.value}`);
+      card.classList.remove("opacity-50");
+      
+      if (!response.ok) {
+        card.innerHTML = `
+          <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-700 bg-red-50/50 dark:bg-red-900/10">
+            <h4 class="font-bold text-gray-900 dark:text-white flex items-center">
+                <span class="w-2 h-2 rounded-full bg-red-500 mr-2"></span>${model.label}
+            </h4>
+          </div>
+          <div class="p-6 flex-grow flex flex-col justify-center">
+            <p class="text-sm text-red-500">${data.error || "An error occurred."}</p>
+          </div>
+        `;
+        return;
+      }
 
-      tr.innerHTML = `
-                <td class="px-6 py-4 font-medium text-white flex items-center">
-                    ${row.model}
-                    ${index === 0 ? '<svg class="w-4 h-4 ml-2 text-green-400" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>' : ""}
-                </td>
-                <td class="px-6 py-4">${Math.round(row.accuracy * 100)}%</td>
-                <td class="px-6 py-4">${row.precision}</td>
-                <td class="px-6 py-4">${row.recall}</td>
-                <td class="px-6 py-4 font-bold text-blue-300">${row.f1}</td>
-                <td class="px-6 py-4 font-mono text-gray-500">${row.avg_latency}s</td>
-            `;
-      tableBody.appendChild(tr);
-    });
-
-    const recText = document.getElementById("recommendationText");
-    if (recText) {
-      recText.innerHTML = `Based on the latest run, <strong class="text-white">${bestModel.model}</strong> is the top performer with an F1-score of <strong>${bestModel.f1}</strong>. It is recommended for production use cases requiring high accuracy.`;
+      const isFR = data.classification === "FR";
+      const badgeClass = isFR ? "text-green-600 bg-green-100 border-green-200 dark:text-green-400 dark:bg-green-900/30 dark:border-green-500/30" : "text-red-600 bg-red-100 border-red-200 dark:text-red-400 dark:bg-red-900/30 dark:border-red-500/30";
+      
+      card.innerHTML = `
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50/50 dark:bg-slate-800/30 flex justify-between items-center">
+          <h4 class="font-bold text-gray-900 dark:text-white flex items-center">
+              <span class="w-2 h-2 rounded-full bg-green-500 mr-2"></span>${model.label}
+          </h4>
+          <span class="text-xs font-mono text-gray-500">${data.latency}s</span>
+        </div>
+        <div class="p-6 flex-grow flex flex-col space-y-4">
+          <div class="flex items-center space-x-3">
+             <span class="px-2 py-1 rounded text-xs font-bold border ${badgeClass}">
+                ${data.classification}
+             </span>
+             <span class="text-sm font-medium text-gray-700 dark:text-gray-300">${data.category || "-"}</span>
+          </div>
+          <div class="bg-gray-50 dark:bg-slate-900/50 p-3 rounded-lg border border-gray-200 dark:border-slate-700/50 flex-grow">
+            <p class="text-xs text-gray-400 uppercase font-bold mb-1">Reason</p>
+            <p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">${data.reason || "--"}</p>
+          </div>
+        </div>
+      `;
+    } catch (e) {
+      const card = document.getElementById(`compare-card-${model.value}`);
+      if(card) {
+          card.classList.remove("opacity-50");
+          card.innerHTML = `
+            <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-700 bg-red-50/50 dark:bg-red-900/10">
+              <h4 class="font-bold text-gray-900 dark:text-white flex items-center">
+                  <span class="w-2 h-2 rounded-full bg-red-500 mr-2"></span>${model.label}
+              </h4>
+            </div>
+            <div class="p-6 flex-grow flex flex-col justify-center">
+              <p class="text-sm text-red-500">Network error occurred.</p>
+            </div>
+          `;
+      }
     }
-  } catch (e) {
-    console.error(e);
+  });
+
+  await Promise.all(promises);
+
+  // Restore button
+  runBtn.disabled = false;
+  runBtn.innerHTML = `
+      <span>Run Comparison</span>
+      <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+      </svg>
+  `;
+
+  function showCompareError(msg) {
+    if (errorBanner && errorText) {
+      errorText.textContent = msg;
+      errorBanner.classList.remove("hidden");
+    }
+  }
+}
+
+function clearComparison() {
+  const storyInput = document.getElementById("compareStoryInput");
+  const errorBanner = document.getElementById("compareErrorBanner");
+  const resultsArea = document.getElementById("compareResultsArea");
+  const cardsContainer = document.getElementById("compareCardsContainer");
+  const runBtn = document.getElementById("runCompareBtn");
+
+  if(storyInput) storyInput.value = "";
+  if(errorBanner) errorBanner.classList.add("hidden");
+  if(resultsArea) resultsArea.classList.add("hidden");
+  if(cardsContainer) cardsContainer.innerHTML = "";
+  
+  if(runBtn) {
+    runBtn.disabled = false;
+    runBtn.innerHTML = `
+        <span>Run Comparison</span>
+        <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+    `;
   }
 }
 

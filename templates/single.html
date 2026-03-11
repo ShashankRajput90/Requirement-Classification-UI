@@ -3,22 +3,11 @@
   <!-- Header -->
   <!-- Header -->
   <div class="relative">
-    <a
-      href="{{ url_for('index') }}"
-      class="absolute left-0 top-0 inline-flex items-center text-sm text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors group"
-    >
-      <svg
-        class="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M10 19l-7-7m0 0l7-7m-7 7h18"
-        ></path>
+    <a href="{{ url_for('index') }}"
+      class="absolute left-0 top-0 inline-flex items-center text-sm text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors group">
+      <svg class="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor"
+        viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
       </svg>
       Back to Home
     </a>
@@ -37,28 +26,63 @@
     <div>
       <div class="glass-card p-6 rounded-2xl bg-white/70 dark:bg-slate-800/70">
         <div class="flex flex-col space-y-4">
-          <label
-            for="storyInput"
-            class="text-sm font-medium text-gray-700 dark:text-gray-300"
-            >User Story</label
-          >
-          <textarea
-            id="storyInput"
-            rows="4"
-            class="w-full themed-input rounded-xl p-4 text-base focus:ring-2 focus:ring-blue-500 transition-all placeholder-gray-400 dark:placeholder-gray-600 resize-none"
-            placeholder="e.g., As a user, I want to reset my password so that I can regain access to my account."
-          ></textarea>
+          <div class="flex flex-col space-y-2">
+            <div class="flex justify-between items-center">
+              <label for="storyInput" class="text-sm font-medium text-gray-700 dark:text-gray-300">User Story</label>
+              <button type="button" onclick="clearSingleClassification()" class="text-gray-400 hover:text-red-500 transition-colors p-1 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center text-xs font-medium" title="Clear Story and Results">
+                  <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                  Clear
+              </button>
+            </div>
+
+            <!-- Examples Library -->
+            <div class="flex flex-wrap gap-2 pb-1 items-center">
+              <span class="text-xs text-gray-500 dark:text-gray-400 font-medium mr-1 flex items-center">
+                <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                Try an example:
+              </span>
+              <button type="button"
+                onclick="document.getElementById('storyInput').value='As a user, I want to reset my password so that I can regain access to my account.'"
+                class="group text-xs bg-white/50 dark:bg-slate-800/50 hover:bg-blue-50 dark:hover:bg-blue-900/30 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-slate-600 hover:border-blue-300 dark:hover:border-blue-700 transition-all font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 shadow-sm hover:shadow-md">
+                <span
+                  class="inline-block w-2 h-2 rounded-full bg-green-500 mr-1.5 group-hover:animate-pulse"></span>Login
+                (FR)
+              </button>
+              <button type="button"
+                onclick="document.getElementById('storyInput').value='The system must process payments within 3 seconds.'"
+                class="group text-xs bg-white/50 dark:bg-slate-800/50 hover:bg-purple-50 dark:hover:bg-purple-900/30 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-slate-600 hover:border-purple-300 dark:hover:border-purple-700 transition-all font-medium text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 shadow-sm hover:shadow-md">
+                <span
+                  class="inline-block w-2 h-2 rounded-full bg-yellow-500 mr-1.5 group-hover:animate-pulse"></span>Performance
+                (NFR)
+              </button>
+              <button type="button"
+                onclick="document.getElementById('storyInput').value='All network traffic must be encrypted using TLS 1.3.'"
+                class="group text-xs bg-white/50 dark:bg-slate-800/50 hover:bg-red-50 dark:hover:bg-red-900/30 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-slate-600 hover:border-red-300 dark:hover:border-red-700 transition-all font-medium text-gray-700 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 shadow-sm hover:shadow-md">
+                <span
+                  class="inline-block w-2 h-2 rounded-full bg-red-500 mr-1.5 group-hover:animate-pulse"></span>Security
+                (NFR)
+              </button>
+              <button type="button"
+                onclick="document.getElementById('storyInput').value='The application UI must comply with WCAG 2.1 AA accessibility guidelines.'"
+                class="group text-xs bg-white/50 dark:bg-slate-800/50 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-slate-600 hover:border-indigo-300 dark:hover:border-indigo-700 transition-all font-medium text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 shadow-sm hover:shadow-md hidden sm:flex">
+                <span
+                  class="inline-block w-2 h-2 rounded-full bg-indigo-500 mr-1.5 group-hover:animate-pulse"></span>Accessibility
+                (NFR)
+              </button>
+            </div>
+          </div>
+
+          <textarea id="storyInput" rows="4"
+            class="w-full themed-input rounded-xl p-4 text-base focus:ring-2 focus:ring-blue-500 transition-all placeholder-gray-400 dark:placeholder-gray-600 resize-none shadow-inner"
+            placeholder="e.g., As a user, I want to reset my password so that I can regain access to my account."></textarea>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label
-                class="text-sm font-medium text-gray-700 dark:text-gray-300"
-                >AI Model</label
-              >
-              <select
-                id="modelSelect"
-                class="w-full mt-1 themed-input rounded-lg p-2.5 text-sm"
-              >
+              <label class="text-sm font-medium text-gray-700 dark:text-gray-300">AI Model</label>
+              <select id="modelSelect" class="w-full mt-1 themed-input rounded-lg p-2.5 text-sm">
                 <option value="ChatGPT" selected>ChatGPT-4o (via Groq)</option>
                 <option value="Gemini">Gemini 2.5 Pro</option>
                 <option value="Claude">Claude 3 Haiku</option>
@@ -68,14 +92,8 @@
               </select>
             </div>
             <div>
-              <label
-                class="text-sm font-medium text-gray-700 dark:text-gray-300"
-                >Prompting Strategy</label
-              >
-              <select
-                id="strategySelect"
-                class="w-full mt-1 themed-input rounded-lg p-2.5 text-sm"
-              >
+              <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Prompting Strategy</label>
+              <select id="strategySelect" class="w-full mt-1 themed-input rounded-lg p-2.5 text-sm">
                 <option value="Zero-shot" selected>Zero-shot (Direct)</option>
                 <option value="Few-shot">Few-shot (With Examples)</option>
                 <option value="Chain-of-Thought">
@@ -88,23 +106,12 @@
           </div>
 
           <div class="pt-2 flex justify-end">
-            <button
-              onclick="classifyStory()"
-              class="bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2.5 px-6 rounded-xl transition-all shadow-lg hover:shadow-blue-500/25 flex items-center"
-            >
+            <button onclick="classifyStory()"
+              class="bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2.5 px-6 rounded-xl transition-all shadow-lg hover:shadow-blue-500/25 flex items-center">
               <span>Classify Story</span>
-              <svg
-                class="w-5 h-5 ml-2"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M13 10V3L4 14h7v7l9-11h-7z"
-                ></path>
+              <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z">
+                </path>
               </svg>
             </button>
           </div>
@@ -112,18 +119,13 @@
       </div>
 
       <!-- Loading Indicator -->
-      <div
-        id="statusIndicator"
-        class="hidden flex items-center justify-center p-8"
-      >
+      <div id="statusIndicator" class="hidden flex items-center justify-center p-8">
         <div class="flex flex-col items-center">
           <div class="relative w-16 h-16">
+            <div class="absolute top-0 left-0 w-full h-full border-4 border-blue-500/30 rounded-full"></div>
             <div
-              class="absolute top-0 left-0 w-full h-full border-4 border-blue-500/30 rounded-full"
-            ></div>
-            <div
-              class="absolute top-0 left-0 w-full h-full border-4 border-blue-500 rounded-full border-t-transparent animate-spin"
-            ></div>
+              class="absolute top-0 left-0 w-full h-full border-4 border-blue-500 rounded-full border-t-transparent animate-spin">
+            </div>
           </div>
           <p class="mt-4 text-gray-400 animate-pulse">
             Analyzing Requirements...
@@ -132,64 +134,36 @@
       </div>
 
       <!-- ✅ ADD ERROR BANNER HERE -->
-      <div
-        id="errorBanner"
-        class="hidden mt-6 flex items-center gap-3 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm"
-      >
-        <svg
-          class="w-5 h-5 shrink-0"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
-          />
+      <div id="errorBanner"
+        class="hidden mt-6 flex items-center gap-3 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
         </svg>
         <span id="errorBannerText">Something went wrong.</span>
       </div>
 
       <!-- Results Section -->
-      <div
-        id="resultArea"
-        class="hidden opacity-0 transition-opacity duration-500 mt-6"
-      >
-        <div
-          class="glass-card p-0 rounded-2xl overflow-hidden bg-white/70 dark:bg-slate-800/70"
-        >
+      <div id="resultArea" class="hidden opacity-0 transition-opacity duration-500 mt-6">
+        <div class="glass-card p-0 rounded-2xl overflow-hidden bg-white/70 dark:bg-slate-800/70">
           <div class="p-6 border-b border-gray-200 dark:border-slate-700">
-            <h3
-              class="text-xl font-bold text-gray-900 dark:text-white flex items-center"
-            >
+            <h3 class="text-xl font-bold text-gray-900 dark:text-white flex items-center">
               Classification Result
             </h3>
           </div>
           <div class="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
             <!-- Left: Main Badge -->
             <div
-              class="flex flex-col items-center justify-center p-6 bg-gray-50 dark:bg-slate-800/50 rounded-2xl border border-gray-100 dark:border-slate-700/50"
-            >
+              class="flex flex-col items-center justify-center p-6 bg-gray-50 dark:bg-slate-800/50 rounded-2xl border border-gray-100 dark:border-slate-700/50">
               <span
-                class="text-gray-500 dark:text-gray-400 text-sm uppercase tracking-widest font-semibold mb-3"
-                >Type</span
-              >
-              <div
-                id="resBadge"
-                class="text-2xl font-bold px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700"
-              >
+                class="text-gray-500 dark:text-gray-400 text-sm uppercase tracking-widest font-semibold mb-3">Type</span>
+              <div id="resBadge"
+                class="text-2xl font-bold px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700">
                 --
               </div>
               <div class="mt-4 text-center">
-                <span class="text-xs text-gray-400 uppercase font-bold"
-                  >Category</span
-                >
-                <p
-                  id="resCategory"
-                  class="text-lg text-gray-700 dark:text-blue-300 font-medium mt-1"
-                >
+                <span class="text-xs text-gray-400 uppercase font-bold">Category</span>
+                <p id="resCategory" class="text-lg text-gray-700 dark:text-blue-300 font-medium mt-1">
                   --
                 </p>
               </div>
@@ -198,27 +172,19 @@
             <!-- Right: Details -->
             <div class="space-y-6">
               <div>
-                <span
-                  class="text-xs text-gray-500 dark:text-gray-400 uppercase font-bold"
-                  >Model Used</span
-                >
+                <span class="text-xs text-gray-500 dark:text-gray-400 uppercase font-bold">Model Used</span>
                 <div class="flex items-center mt-1">
                   <div class="w-2 h-2 rounded-full bg-green-500 mr-2"></div>
                   <span id="resModel" class="font-mono text-gray-300">--</span>
                   <span class="mx-2 text-gray-600">/</span>
-                  <span
-                    id="resStrategy"
-                    class="text-sm text-gray-500 dark:text-gray-400"
-                    >--</span
-                  >
+                  <span id="resStrategy" class="text-sm text-gray-500 dark:text-gray-400">--</span>
                 </div>
               </div>
 
               <div class="grid grid-cols-2 gap-4">
                 <!-- Latency -->
                 <div
-                  class="bg-gray-50 dark:bg-slate-900/50 p-3 rounded-lg border border-gray-200 dark:border-slate-700/50"
-                >
+                  class="bg-gray-50 dark:bg-slate-900/50 p-3 rounded-lg border border-gray-200 dark:border-slate-700/50">
                   <p class="text-xs text-gray-400 uppercase">Latency</p>
                   <p id="resLatency" class="text-xl font-bold text-white mt-1">
                     --
@@ -227,18 +193,14 @@
 
                 <!-- ✅ Confidence -->
                 <div
-                  class="bg-gray-50 dark:bg-slate-900/50 p-3 rounded-lg border border-gray-200 dark:border-slate-700/50"
-                >
+                  class="bg-gray-50 dark:bg-slate-900/50 p-3 rounded-lg border border-gray-200 dark:border-slate-700/50">
                   <p class="text-xs text-gray-400 uppercase mb-2">Confidence</p>
                   <div id="resConfidence">
                     <div class="flex items-center justify-between mb-2">
                       <span class="text-xl font-bold text-gray-400">--</span>
                     </div>
                     <div class="w-full bg-slate-700 rounded-full h-2">
-                      <div
-                        class="bg-gray-500 h-2 rounded-full"
-                        style="width: 0%"
-                      ></div>
+                      <div class="bg-gray-500 h-2 rounded-full" style="width: 0%"></div>
                     </div>
                   </div>
                 </div>
@@ -246,30 +208,31 @@
 
               <!-- Reason -->
               <div
-                class="bg-gray-50 dark:bg-slate-900/50 p-4 rounded-lg border border-gray-200 dark:border-slate-700/50"
-              >
+                class="bg-gray-50 dark:bg-slate-900/50 p-4 rounded-lg border border-gray-200 dark:border-slate-700/50">
                 <p class="text-xs text-gray-400 uppercase font-bold mb-1">
                   Reason
                 </p>
-                <p
-                  id="resReason"
-                  class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed"
-                >
+                <p id="resReason" class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
                   --
                 </p>
               </div>
             </div>
           </div>
-          
+
           <!-- Step-by-Step Reasoning (Optional) -->
-          <div id="resStepByStepContainer" class="hidden border-t border-gray-200 dark:border-slate-700 p-8 bg-gray-50/50 dark:bg-slate-800/30">
+          <div id="resStepByStepContainer"
+            class="hidden border-t border-gray-200 dark:border-slate-700 p-8 bg-gray-50/50 dark:bg-slate-800/30">
             <h4 class="text-sm font-semibold text-gray-900 dark:text-white mb-3 flex items-center">
               <svg class="w-4 h-4 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z">
+                </path>
               </svg>
               Step-by-Step Reasoning
             </h4>
-            <div class="text-sm text-gray-600 dark:text-gray-400 font-mono whitespace-pre-wrap leading-relaxed overflow-x-auto p-4 rounded-lg bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 shadow-inner" id="resStepByStep">
+            <div
+              class="text-sm text-gray-600 dark:text-gray-400 font-mono whitespace-pre-wrap leading-relaxed overflow-x-auto p-4 rounded-lg bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 shadow-inner"
+              id="resStepByStep">
               --
             </div>
           </div>

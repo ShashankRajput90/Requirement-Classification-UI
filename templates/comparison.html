@@ -9,51 +9,124 @@
         </div>
     </div>
 
-    <!-- Comparison Table -->
-    <div class="glass-card rounded-2xl overflow-hidden fade-in bg-white/70 dark:bg-slate-800/70">
-        <div class="p-6 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
-            <h3 class="font-semibold text-gray-900 dark:text-white">Live Benchmark Results</h3>
-            <button onclick="loadComparisonData()"
-                class="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 font-medium cursor-pointer">
-                Refresh Data
-            </button>
-        </div>
-        <div class="overflow-x-auto">
-            <table class="w-full text-left">
-                <thead
-                    class="bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-gray-400 uppercase font-semibold text-xs">
-                    <tr>
-                        <th class="px-6 py-4">Model</th>
-                        <th class="px-6 py-4">Accuracy</th>
-                        <th class="px-6 py-4">Precision</th>
-                        <th class="px-6 py-4">Recall</th>
-                        <th class="px-6 py-4">F1 Score</th>
-                        <th class="px-6 py-4">Avg Latency</th>
-                    </tr>
-                </thead>
-                <tbody id="comparisonTableBody"
-                    class="divide-y divide-gray-200 dark:divide-slate-700 text-sm text-gray-700 dark:text-gray-300">
-                    <!-- Loaded via JS -->
-                </tbody>
-            </table>
+    <!-- Inputs Section -->
+    <div class="glass-card p-6 rounded-2xl bg-white/70 dark:bg-slate-800/70">
+        <div class="flex flex-col space-y-6">
+            <!-- Story -->
+            <div class="relative">
+                <div class="flex justify-between items-center mb-2">
+                    <label for="compareStoryInput" class="text-sm font-medium text-gray-700 dark:text-gray-300">User Story to Compare</label>
+                    <button type="button" onclick="clearComparison()" class="text-gray-400 hover:text-red-500 transition-colors p-1 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center text-xs font-medium" title="Clear Story and Results">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        Clear
+                    </button>
+                </div>
+                <textarea id="compareStoryInput" rows="3"
+                    class="w-full themed-input rounded-xl p-4 text-base focus:ring-2 focus:ring-blue-500 transition-all placeholder-gray-400 dark:placeholder-gray-600 resize-none shadow-inner pr-10"
+                    placeholder="e.g., As a user, I want a secure login system so that my data is protected."></textarea>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Strategy -->
+                <div class="lg:col-span-1">
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-2">Prompting
+                        Strategy</label>
+                    <select id="compareStrategySelect" class="w-full themed-input rounded-lg p-3 text-sm">
+                        <option value="Zero-shot" selected>Zero-shot (Direct)</option>
+                        <option value="Few-shot">Few-shot (With Examples)</option>
+                        <option value="Chain-of-Thought">Chain-of-Thought (Reasoning)</option>
+                        <option value="Role-Based">Role-Based (Expert Persona)</option>
+                        <option value="ReAct">ReAct (Reasoning + Acting)</option>
+                    </select>
+                </div>
+
+                <!-- Models -->
+                <div class="lg:col-span-2">
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-2">Select Models
+                        to Compare (Minimum 2 models required)</label>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3" id="compareModelCheckboxes">
+                        <!-- Model Checkboxes -->
+                        <label
+                            class="flex items-center p-3 border border-gray-200 dark:border-slate-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors">
+                            <input type="checkbox" value="ChatGPT"
+                                class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                                checked>
+                            <span class="ml-3 text-sm font-medium text-gray-900 dark:text-gray-300">ChatGPT-4o</span>
+                        </label>
+                        <label
+                            class="flex items-center p-3 border border-gray-200 dark:border-slate-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors">
+                            <input type="checkbox" value="Gemini"
+                                class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                                checked>
+                            <span class="ml-3 text-sm font-medium text-gray-900 dark:text-gray-300">Gemini 2.5</span>
+                        </label>
+                        <label
+                            class="flex items-center p-3 border border-gray-200 dark:border-slate-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors">
+                            <input type="checkbox" value="Claude"
+                                class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
+                            <span class="ml-3 text-sm font-medium text-gray-900 dark:text-gray-300">Claude 3</span>
+                        </label>
+                        <label
+                            class="flex items-center p-3 border border-gray-200 dark:border-slate-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors">
+                            <input type="checkbox" value="Groq"
+                                class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
+                            <span class="ml-3 text-sm font-medium text-gray-900 dark:text-gray-300">Llama 3</span>
+                        </label>
+                        <label
+                            class="flex items-center p-3 border border-gray-200 dark:border-slate-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors">
+                            <input type="checkbox" value="Cohere"
+                                class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
+                            <span class="ml-3 text-sm font-medium text-gray-900 dark:text-gray-300">Cohere</span>
+                        </label>
+                        <label
+                            class="flex items-center p-3 border border-gray-200 dark:border-slate-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors">
+                            <input type="checkbox" value="Mistral"
+                                class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
+                            <span class="ml-3 text-sm font-medium text-gray-900 dark:text-gray-300">Mistral</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Error Banner -->
+            <div id="compareErrorBanner"
+                class="hidden flex items-center gap-3 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+                <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                </svg>
+                <span id="compareErrorText">Error messages go here.</span>
+            </div>
+
+            <div class="flex justify-end pt-2 border-t border-gray-200 dark:border-slate-700">
+                <button onclick="runModelComparison()" id="runCompareBtn"
+                    class="bg-purple-600 hover:bg-purple-500 text-white font-semibold py-2.5 px-8 rounded-xl transition-all shadow-lg hover:shadow-purple-500/25 flex items-center">
+                    <span>Run Comparison</span>
+                    <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z">
+                        </path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </button>
+            </div>
         </div>
     </div>
 
-    <!-- Insight Card -->
-    <div class="glass-card rounded-xl p-6 border-l-4 border-yellow-500 bg-white/70 dark:bg-slate-800/70">
-        <h4 class="text-lg font-bold text-gray-900 dark:text-white mb-2">Recommendation</h4>
-        <p class="text-gray-600 dark:text-gray-300" id="recommendationText">
-            Loading recommendation based on latest metrics...
-        </p>
+    <!-- Results Section -->
+    <div id="compareResultsArea" class="hidden">
+        <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Comparison Results</h3>
+        <!-- Grid for side-by-side cards -->
+        <div id="compareCardsContainer" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            <!-- Cards injected via JS -->
+        </div>
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-    // Specific script init for this page
-    document.addEventListener('DOMContentLoaded', () => {
-        loadComparisonData();
-    });
+    // Specific script init for this page handled in dashboard.js
 </script>
 {% endblock %}
