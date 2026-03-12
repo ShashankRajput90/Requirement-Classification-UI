@@ -13,6 +13,11 @@ from sqlalchemy import func
 from code_integration import classify
 from models import db, User, BatchRun, BatchResult
 
+# Add to existing imports at top of app.py
+from sklearn.metrics import (
+    accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
+)
+
 app = Flask(__name__)
 
 # =========================
@@ -627,6 +632,181 @@ def usage_data():
         "total_calls":  total_calls,
         "success_rate": success_rate,
         "avg_cost":     avg_cost
+    })
+    
+# =========================
+# Ground Truth Evaluation Route
+# =========================
+@app.route('/evaluate', methods=['GET', 'POST'])
+@login_required
+def evaluate():
+    return render_template('evaluate.html', page='evaluate')
+
+
+@app.route('/api/evaluate', methods=['POST'])
+@login_required
+def run_evaluation():
+    if 'file' not in request.files or request.files['file'].filename == '':
+        return jsonify({"error": "No file uploaded"}), 400
+
+    file     = request.files['file']
+    model    = request.form.get('model', 'ChatGPT')
+    strategy = request.form.get('strategy', 'Zero-shot')
+
+    model_map = {
+        "ChatGPT": "groq_gpt",
+        "Gemini":  "gemini",
+        "Claude":  "claude",
+        "Groq":    "groq_llama3",
+        "Cohere":  "cohere",
+        "Mistral": "mistral"
+    }
+    strategy_map = {
+        "Zero-shot":        "zero_shot",
+        "Few-shot":         "few_shot",
+        "Chain-of-Thought": "chain_of_thought",
+        "Role-Based":       "role_based",
+        "ReAct":            "react"
+    }
+    backend_model = model_map.get(model, "groq_gpt")
+    technique     = strategy_map.get(strategy, "zero_shot")
+
+    # --- Parse uploaded CSV ---
+    try:
+        df = pd.read_csv(file)
+    except Exception as e:
+        return jsonify({"error": f"Could not read CSV: {str(e)}"}), 400
+
+    # Flexible column name support
+    story_col = next((c for c in ['user_story', 'story', 'text', 'User Story', 'content'] if c in df.columns), None)
+    label_col = next((c for c in ['label', 'Label', 'is_nfr', 'type'] if c in df.columns), None)
+
+    if not story_col:
+        return jsonify({"error": "CSV must have a 'user_story' column"}), 400
+    if not label_col:
+        return jsonify({"error": "CSV must have a 'label' column with ground truth (FR/NFR or Yes/No)"}), 400
+
+    df = df.rename(columns={story_col: 'user_story', label_col: 'label'})
+    df = df.dropna(subset=['user_story', 'label']).head(50)  # cap at 50 for cost control
+
+    if len(df) < 2:
+        return jsonify({"error": "CSV must have at least 2 valid rows"}), 400
+
+    # --- Normalize ground truth labels ---
+    def normalize_label(val):
+        v = str(val).strip().lower()
+        if v in ['yes', 'nfr', '1', 'non-functional', 'nonfunctional']:
+            return 'NFR'
+        return 'FR'
+
+    df['true_label'] = df['label'].apply(normalize_label)
+    has_type_col     = 'nfr_type' in df.columns
+
+    # --- Run classification for each story ---
+    y_true, y_pred, details = [], [], []
+
+    for _, row in df.iterrows():
+        story      = str(row['user_story']).strip()
+        true_label = row['true_label']
+        true_type  = str(row.get('nfr_type', '')).strip() if has_type_col else ''
+
+        try:
+            start_t        = time.time()
+            raw_resp, code = classify(backend_model, story, technique)
+            latency        = round(time.time() - start_t, 2)
+
+            if code != 200:
+                pred_label  = 'Error'
+                parsed      = {}
+                confidence  = 0
+                reason      = str(raw_resp)
+                pred_type   = ''
+            else:
+                parsed      = parse_backend_response(raw_resp, model, strategy, latency)
+                pred_label  = parsed.get('classification', 'FR')
+                confidence  = parsed.get('confidence', 50)
+                reason      = parsed.get('reason', '')
+                pred_type   = parsed.get('category') or ''
+
+        except Exception as e:
+            pred_label  = 'Error'
+            confidence  = 0
+            reason      = str(e)
+            pred_type   = ''
+            latency     = 0
+
+        correct = (true_label == pred_label)
+        y_true.append(true_label)
+        y_pred.append(pred_label)
+
+        details.append({
+            "story":      story,
+            "true_label": true_label,
+            "pred_label": pred_label,
+            "correct":    correct,
+            "confidence": confidence,
+            "reason":     reason,
+            "true_type":  true_type,
+            "pred_type":  pred_type,
+            "latency":    latency
+        })
+
+    # --- Filter out errors for metric computation ---
+    valid_pairs = [(t, p) for t, p in zip(y_true, y_pred) if p != 'Error']
+    if len(valid_pairs) < 2:
+        return jsonify({"error": "Too many classification errors to compute metrics"}), 500
+
+    vt, vp = zip(*valid_pairs)
+
+    # --- Binary metrics (FR vs NFR) ---
+    binary_metrics = {
+        "accuracy":  round(accuracy_score(vt, vp) * 100, 1),
+        "precision": round(precision_score(vt, vp, pos_label='NFR', zero_division=0) * 100, 1),
+        "recall":    round(recall_score(vt, vp, pos_label='NFR', zero_division=0) * 100, 1),
+        "f1":        round(f1_score(vt, vp, pos_label='NFR', zero_division=0) * 100, 1),
+    }
+
+    # --- Confusion matrix values ---
+    cm = confusion_matrix(vt, vp, labels=['FR', 'NFR'])
+    confusion = {
+        "TN": int(cm[0][0]),  # FR predicted as FR
+        "FP": int(cm[0][1]),  # FR predicted as NFR
+        "FN": int(cm[1][0]),  # NFR predicted as FR
+        "TP": int(cm[1][1]),  # NFR predicted as NFR
+    }
+
+    # --- Error analysis: group misclassifications ---
+    false_positives = [d for d in details if d['true_label'] == 'FR'  and d['pred_label'] == 'NFR']
+    false_negatives = [d for d in details if d['true_label'] == 'NFR' and d['pred_label'] == 'FR']
+
+    # --- NFR type accuracy (only where both sides are NFR) ---
+    type_details = [d for d in details if d['true_label'] == 'NFR' and d['pred_label'] == 'NFR'
+                    and d['true_type'] and d['pred_type']]
+    type_accuracy = None
+    if type_details:
+        type_correct  = sum(1 for d in type_details if d['true_type'].lower() in d['pred_type'].lower())
+        type_accuracy = round(type_correct / len(type_details) * 100, 1)
+
+    # --- Confidence breakdown ---
+    correct_confidences   = [d['confidence'] for d in details if d['correct']     and d['pred_label'] != 'Error']
+    incorrect_confidences = [d['confidence'] for d in details if not d['correct'] and d['pred_label'] != 'Error']
+    avg_conf_correct   = round(sum(correct_confidences)   / len(correct_confidences), 1)   if correct_confidences   else 0
+    avg_conf_incorrect = round(sum(incorrect_confidences) / len(incorrect_confidences), 1) if incorrect_confidences else 0
+
+    return jsonify({
+        "model":          model,
+        "strategy":       strategy,
+        "total":          len(details),
+        "valid":          len(valid_pairs),
+        "errors":         len(details) - len(valid_pairs),
+        "binary_metrics": binary_metrics,
+        "confusion":      confusion,
+        "type_accuracy":  type_accuracy,
+        "details":        details,
+        "false_positives": false_positives,
+        "false_negatives": false_negatives,
+        "avg_conf_correct":   avg_conf_correct,
+        "avg_conf_incorrect": avg_conf_incorrect,
     })
 
 
