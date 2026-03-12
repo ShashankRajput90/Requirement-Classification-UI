@@ -1,16 +1,17 @@
-from flask import Flask, render_template, request, jsonify, Response, stream_with_context, session, redirect, url_for
+import re
 import json
-from code_integration import classify
 import time
 import os
+
 import pandas as pd
-import random
-import psycopg2
-from psycopg2.extras import RealDictCursor
+from flask import Flask, render_template, request, jsonify, Response, stream_with_context, session, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_required, login_user, logout_user, current_user
 from authlib.integrations.flask_client import OAuth
-from models import db, User
+from sqlalchemy import func
+
+from code_integration import classify
+from models import db, User, BatchRun, BatchResult
 
 app = Flask(__name__)
 
@@ -53,49 +54,23 @@ with app.app_context():
     db.create_all()
 
 # =========================
-# PostgreSQL connection (kept for analytics routes)
+# Module-level Constants
 # =========================
-def get_db_connection():
-    return psycopg2.connect(
-        dbname=os.getenv("DB_NAME"),
-        user=os.getenv("DB_USER"),
-        password=os.getenv("DB_PASSWORD"),
-        host=os.getenv("DB_HOST"),
-        port=os.getenv("DB_PORT")
-    )
+MODEL_MAP = {
+    "ChatGPT": "groq_gpt",
+    "Gemini":  "gemini",
+    "Claude":  "claude",
+    "Groq":    "groq_llama3",
+    "Cohere":  "cohere",
+    "Mistral": "mistral"
+}
 
-# =========================
-# Batch DB Helpers
-# =========================
-def create_batch_run(user_id, model, technique, total_stories):
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute("""
-        INSERT INTO batch_runs (user_id, model, prompting_technique, total_stories)
-        VALUES (%s, %s, %s, %s)
-        RETURNING id
-    """, (user_id, model, technique, total_stories))
-    batch_run_id = cur.fetchone()[0]
-    conn.commit()
-    cur.close()
-    conn.close()
-    return batch_run_id
+STRATEGY_MAP = {
+    "Zero-shot":        "zero_shot",
+    "Few-shot":         "few_shot",
+    "Chain-of-Thought": "chain_of_thought",
+}
 
-def insert_batch_result(batch_run_id, user_id, story, model, classification, category, latency):
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute("""
-        INSERT INTO batch_results
-        (batch_run_id, user_id, story, model, classification, category, latency)
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
-    """, (batch_run_id, user_id, story, model, classification, category, latency))
-    conn.commit()
-    cur.close()
-    conn.close()
-
-# =========================
-# Constants
-# =========================
 MODELS = ["groq_gpt", "groq_llama3", "gemini", "cohere", "claude", "mistral"]
 
 CATEGORIES = [
@@ -132,8 +107,6 @@ def parse_backend_response(raw_response, model, strategy, latency=0):
     confidence = 50
     step_by_step = ""
 
-    # Extract thinking block
-    import re
     think_match = re.search(r"<think>(.*?)</think>", raw_response, flags=re.DOTALL)
     if think_match:
         step_by_step = think_match.group(1).strip()
@@ -230,11 +203,6 @@ def signup():
     return render_template('signup.html', page='signup')
 
 
-# @app.route('/logout')
-# @login_required
-# def logout():
-#     logout_user()
-#     return redirect(url_for("login"))
 @app.route('/logout', methods=["POST"])
 @login_required
 def logout():
@@ -299,22 +267,8 @@ def single():
         model    = data.get('model', 'ChatGPT')
         strategy = data.get('strategy', 'Zero-shot')
 
-        model_map = {
-            "ChatGPT": "groq_gpt",
-            "Gemini":  "gemini",
-            "Claude":  "claude",
-            "Groq":    "groq_llama3",
-            "Cohere":  "cohere",
-            "Mistral": "mistral"
-        }
-        backend_model = model_map.get(model, "groq_gpt")
-
-        strategy_map = {
-            "Zero-shot":       "zero_shot",
-            "Few-shot":        "few_shot",
-            "Chain-of-Thought": "chain_of_thought",
-        }
-        technique = strategy_map.get(strategy, "zero_shot")
+        backend_model = MODEL_MAP.get(model, "groq_gpt")
+        technique     = STRATEGY_MAP.get(strategy, "zero_shot")
 
         try:
             start_t = time.time()
@@ -344,22 +298,8 @@ def batch():
         model    = request.form.get('model', 'ChatGPT')
         strategy = request.form.get('strategy', 'Zero-shot')
 
-        model_map = {
-            "ChatGPT": "groq_gpt",
-            "Gemini":  "gemini",
-            "Claude":  "claude",
-            "Groq":    "groq_llama3",
-            "Cohere":  "cohere",
-            "Mistral": "mistral"
-        }
-        backend_model = model_map.get(model, "groq_gpt")
-
-        strategy_map = {
-            "Zero-shot":       "zero_shot",
-            "Few-shot":        "few_shot",
-            "Chain-of-Thought": "chain_of_thought",
-        }
-        technique = strategy_map.get(strategy, "zero_shot")
+        backend_model = MODEL_MAP.get(model, "groq_gpt")
+        technique     = STRATEGY_MAP.get(strategy, "zero_shot")
 
         # File upload handling
         if 'file' in request.files and request.files['file'].filename != '':
@@ -391,12 +331,16 @@ def batch():
         user_id    = current_user.id
         total_rows = len(sampled_df)
 
-        batch_run_id = create_batch_run(
+        # ORM insert for batch run
+        batch_run = BatchRun(
             user_id=user_id,
             model=model,
-            technique=strategy,
+            prompting_technique=strategy,
             total_stories=total_rows
         )
+        db.session.add(batch_run)
+        db.session.commit()
+        batch_run_id = batch_run.id
 
         def generate():
             fr_count = 0
@@ -417,7 +361,9 @@ def batch():
                     else:
                         res = parse_backend_response(raw_response, model, strategy, latency)
                         batch_results_storage.append(res)
-                        insert_batch_result(
+
+                        # ORM insert for batch result
+                        result_row = BatchResult(
                             batch_run_id=batch_run_id,
                             user_id=user_id,
                             story=story,
@@ -426,6 +372,8 @@ def batch():
                             category=res.get("category"),
                             latency=res.get("latency")
                         )
+                        db.session.add(result_row)
+                        db.session.commit()
 
                 except Exception as e:
                     res = {"classification": "Error", "category": None, "latency": 0.0, "error": str(e)}
@@ -463,7 +411,7 @@ def batch():
                     "total": processed,
                     "fr_count": fr_count,
                     "nfr_count": nfr_count,
-                    "avg_time": round(total_time / processed, 2),
+                    "avg_time": round(total_time / processed, 2) if processed else 0,
                     "category_counts": category_counts
                 }
             }) + "\n"
@@ -485,6 +433,7 @@ def comparison():
 @app.route('/api/comparison-data')
 @login_required
 def comparison_data():
+    import random
     results_file = "binary_results.csv"
 
     if os.path.exists(results_file):
@@ -507,6 +456,7 @@ def comparison_data():
             print(f"Error reading results: {e}")
 
     # Fallback mock
+    import random
     data = []
     for model in MODELS:
         data.append({
@@ -534,36 +484,27 @@ def analytics():
 @login_required
 def analytics_data():
     batch_run_id = request.args.get("batch_run_id")
-    conn = get_db_connection()
-    cur  = conn.cursor(cursor_factory=RealDictCursor)
 
+    query = db.session.query(BatchResult)
     if batch_run_id:
-        cur.execute("""
-            SELECT classification, category, latency
-            FROM batch_results
-            WHERE batch_run_id = %s
-        """, (batch_run_id,))
-    else:
-        cur.execute("SELECT classification, category, latency FROM batch_results")
+        query = query.filter(BatchResult.batch_run_id == int(batch_run_id))
 
-    rows = cur.fetchall()
-    cur.close()
-    conn.close()
+    rows = query.all()
 
     if not rows:
         return jsonify({"total": 0, "fr": 0, "nfr": 0, "categories": {}, "latencies": []})
 
     total      = len(rows)
-    fr         = sum(1 for r in rows if r["classification"] == "FR")
-    nfr        = sum(1 for r in rows if r["classification"] == "NFR")
+    fr         = sum(1 for r in rows if r.classification == "FR")
+    nfr        = sum(1 for r in rows if r.classification == "NFR")
     categories = {}
     latencies  = []
 
     for r in rows:
-        if r["classification"] == "NFR" and r["category"]:
-            categories[r["category"]] = categories.get(r["category"], 0) + 1
-        if r["latency"]:
-            latencies.append(r["latency"])
+        if r.classification == "NFR" and r.category:
+            categories[r.category] = categories.get(r.category, 0) + 1
+        if r.latency is not None:
+            latencies.append(r.latency)
 
     return jsonify({"total": total, "fr": fr, "nfr": nfr, "categories": categories, "latencies": latencies})
 
@@ -579,75 +520,80 @@ def reset_batch():
 @app.route("/api/compare_prompting")
 @login_required
 def compare_prompting():
-    conn = get_db_connection()
-    cur  = conn.cursor(cursor_factory=RealDictCursor)
-    cur.execute("""
-        SELECT br.prompting_technique,
-               COUNT(*) AS total,
-               SUM(CASE WHEN r.classification='FR' THEN 1 ELSE 0 END) AS fr,
-               SUM(CASE WHEN r.classification='NFR' THEN 1 ELSE 0 END) AS nfr,
-               AVG(r.latency) AS avg_latency
-        FROM batch_runs br
-        JOIN batch_results r ON br.id = r.batch_run_id
-        GROUP BY br.prompting_technique
-    """)
-    data = cur.fetchall()
-    cur.close()
-    conn.close()
+    rows = (
+        db.session.query(
+            BatchRun.prompting_technique,
+            func.count(BatchResult.id).label("total"),
+            func.sum(db.case((BatchResult.classification == "FR", 1), else_=0)).label("fr"),
+            func.sum(db.case((BatchResult.classification == "NFR", 1), else_=0)).label("nfr"),
+            func.avg(BatchResult.latency).label("avg_latency")
+        )
+        .join(BatchResult, BatchRun.id == BatchResult.batch_run_id)
+        .group_by(BatchRun.prompting_technique)
+        .all()
+    )
+
+    data = [
+        {
+            "prompting_technique": r.prompting_technique,
+            "total":               r.total,
+            "fr":                  r.fr,
+            "nfr":                 r.nfr,
+            "avg_latency":         float(r.avg_latency) if r.avg_latency else 0.0
+        }
+        for r in rows
+    ]
     return jsonify(data)
 
 
 @app.route("/api/batch_runs")
 @login_required
 def get_batch_runs():
-    conn = get_db_connection()
-    cur  = conn.cursor(cursor_factory=RealDictCursor)
-    cur.execute("""
-        SELECT id, model, prompting_technique, created_at
-        FROM batch_runs
-        ORDER BY created_at DESC
-    """)
-    rows = cur.fetchall()
-    cur.close()
-    conn.close()
-    return jsonify(rows)
+    runs = BatchRun.query.order_by(BatchRun.created_at.desc()).all()
+    data = [
+        {
+            "id":                  r.id,
+            "model":               r.model,
+            "prompting_technique": r.prompting_technique,
+            "created_at":          r.created_at.isoformat() if r.created_at else None
+        }
+        for r in runs
+    ]
+    return jsonify(data)
 
 
 @app.route("/api/technique_comparison")
 @login_required
 def technique_comparison():
     batch_run_id = request.args.get("batch_run_id")
-    conn = get_db_connection()
-    cur  = conn.cursor(cursor_factory=RealDictCursor)
+
+    query = (
+        db.session.query(
+            BatchRun.prompting_technique,
+            func.count(BatchResult.id).label("total"),
+            func.sum(db.case((BatchResult.classification == "FR", 1), else_=0)).label("fr"),
+            func.sum(db.case((BatchResult.classification == "NFR", 1), else_=0)).label("nfr"),
+            func.avg(BatchResult.latency).label("avg_latency")
+        )
+        .join(BatchResult, BatchRun.id == BatchResult.batch_run_id)
+        .group_by(BatchRun.prompting_technique)
+    )
 
     if batch_run_id:
-        cur.execute("""
-            SELECT br.prompting_technique,
-                   COUNT(*) as total,
-                   SUM(CASE WHEN r.classification='FR' THEN 1 ELSE 0 END) as fr,
-                   SUM(CASE WHEN r.classification='NFR' THEN 1 ELSE 0 END) as nfr,
-                   AVG(r.latency) as avg_latency
-            FROM batch_runs br
-            JOIN batch_results r ON br.id = r.batch_run_id
-            WHERE br.id = %s
-            GROUP BY br.prompting_technique
-        """, (batch_run_id,))
-    else:
-        cur.execute("""
-            SELECT br.prompting_technique,
-                   COUNT(*) as total,
-                   SUM(CASE WHEN r.classification='FR' THEN 1 ELSE 0 END) as fr,
-                   SUM(CASE WHEN r.classification='NFR' THEN 1 ELSE 0 END) as nfr,
-                   AVG(r.latency) as avg_latency
-            FROM batch_runs br
-            JOIN batch_results r ON br.id = r.batch_run_id
-            GROUP BY br.prompting_technique
-        """)
+        query = query.filter(BatchRun.id == int(batch_run_id))
 
-    rows = cur.fetchall()
-    cur.close()
-    conn.close()
-    return jsonify(rows)
+    rows = query.all()
+    data = [
+        {
+            "prompting_technique": r.prompting_technique,
+            "total":               r.total,
+            "fr":                  r.fr,
+            "nfr":                 r.nfr,
+            "avg_latency":         float(r.avg_latency) if r.avg_latency else 0.0
+        }
+        for r in rows
+    ]
+    return jsonify(data)
 
 
 # =========================
@@ -658,40 +604,29 @@ def technique_comparison():
 def api_dashboard():
     return render_template('api_dashboard.html', page='api_dashboard')
 
+
 @app.route('/api/usage_data')
 @login_required
 def usage_data():
-    # Currently returning mock data or simple aggregates based on batch_results if possible.
-    conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
-    
-    # In a fully implemented version, this would join with an api_costs table.
-    # For now, we return basic aggregated metrics.
-    cur.execute("""
-        SELECT COUNT(*) as total_calls,
-               SUM(CASE WHEN classification != 'Error' THEN 1 ELSE 0 END) as successful_calls
-        FROM batch_results
-    """)
-    stats = cur.fetchone()
-    cur.close()
-    conn.close()
+    total_calls     = db.session.query(func.count(BatchResult.id)).scalar() or 0
+    successful_calls = (
+        db.session.query(func.count(BatchResult.id))
+        .filter(BatchResult.classification != "Error")
+        .scalar() or 0
+    )
 
-    total_calls = stats['total_calls'] if stats['total_calls'] else 0
-    successful_calls = stats['successful_calls'] if stats['successful_calls'] else 0
-    
     success_rate = round((successful_calls / total_calls * 100)) if total_calls > 0 else 0
 
-    # Mock cost calculation
-    total_tokens = total_calls * 250  # Assuming 250 tokens per call on average
-    avg_cost = 0.0015                 # Dummy avg cost
-    total_cost = total_calls * avg_cost
+    total_tokens = total_calls * 250   # ~250 tokens per call average
+    avg_cost     = 0.0015
+    total_cost   = total_calls * avg_cost
 
     return jsonify({
-        "total_cost": total_cost,
+        "total_cost":   total_cost,
         "total_tokens": total_tokens,
-        "total_calls": total_calls,
+        "total_calls":  total_calls,
         "success_rate": success_rate,
-        "avg_cost": avg_cost
+        "avg_cost":     avg_cost
     })
 
 

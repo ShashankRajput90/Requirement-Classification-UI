@@ -170,130 +170,132 @@ function clearSingleClassification() {
 }
 
 // --- File Upload Logic ---
-const dropZone = document.getElementById("dropZone");
-const fileInput = document.getElementById("fileInput");
-const uploadPrompt = document.getElementById("uploadPrompt");
-const fileActionBar = document.getElementById("fileActionBar");
-const uploadedFilename = document.getElementById("uploadedFilename");
-const removeBtn = document.getElementById("removeBtn");
-const previewBtn = document.getElementById("previewBtn");
+// Wrapped in DOMContentLoaded so DOM elements are guaranteed to exist.
+document.addEventListener('DOMContentLoaded', () => {
+  const dropZone        = document.getElementById("dropZone");
+  const fileInput       = document.getElementById("fileInput");
+  const uploadPrompt    = document.getElementById("uploadPrompt");
+  const fileActionBar   = document.getElementById("fileActionBar");
+  const uploadedFilename= document.getElementById("uploadedFilename");
+  const removeBtn       = document.getElementById("removeBtn");
+  const previewBtn      = document.getElementById("previewBtn");
 
-if (dropZone && fileInput) {
-  // Only trigger file picker if clicking on dropZone BUT NOT if clicking actions
-  dropZone.addEventListener("click", (e) => {
-    if (!e.target.closest("button")) {
-      fileInput.click();
-    }
-  });
-
-  dropZone.addEventListener("dragover", (e) => {
-    e.preventDefault();
-    dropZone.classList.add("border-blue-500", "bg-slate-800/10");
-  });
-
-  dropZone.addEventListener("dragleave", () => {
-    dropZone.classList.remove("border-blue-500", "bg-slate-800/10");
-  });
-
-  dropZone.addEventListener("drop", (e) => {
-    e.preventDefault();
-    dropZone.classList.remove("border-blue-500", "bg-slate-800/10");
-
-    if (e.dataTransfer.files.length) {
-      fileInput.files = e.dataTransfer.files;
-      handleFileSelect(e.dataTransfer.files[0]);
-    }
-  });
-
-  fileInput.addEventListener("change", () => {
-    if (fileInput.files.length) {
-      handleFileSelect(fileInput.files[0]);
-    }
-  });
-
-  if (removeBtn) {
-    removeBtn.addEventListener("click", (e) => {
-      e.stopPropagation(); // Stop bubble to dropZone
-      removeFile();
+  if (dropZone && fileInput) {
+    // Only trigger file picker if clicking on dropZone BUT NOT if clicking actions
+    dropZone.addEventListener("click", (e) => {
+      if (!e.target.closest("button")) {
+        fileInput.click();
+      }
     });
-  }
 
-  if (previewBtn) {
-    previewBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      previewFile();
+    dropZone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      dropZone.classList.add("border-blue-500", "bg-slate-800/10");
     });
+
+    dropZone.addEventListener("dragleave", () => {
+      dropZone.classList.remove("border-blue-500", "bg-slate-800/10");
+    });
+
+    dropZone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dropZone.classList.remove("border-blue-500", "bg-slate-800/10");
+
+      if (e.dataTransfer.files.length) {
+        fileInput.files = e.dataTransfer.files;
+        handleFileSelect(e.dataTransfer.files[0]);
+      }
+    });
+
+    fileInput.addEventListener("change", () => {
+      if (fileInput.files.length) {
+        handleFileSelect(fileInput.files[0]);
+      }
+    });
+
+    if (removeBtn) {
+      removeBtn.addEventListener("click", (e) => {
+        e.stopPropagation(); // Stop bubble to dropZone
+        removeFile();
+      });
+    }
+
+    if (previewBtn) {
+      previewBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        previewFile();
+      });
+    }
   }
-}
+});
 
 function handleFileSelect(file) {
+  const uploadedFilename = document.getElementById("uploadedFilename");
+  const uploadPrompt     = document.getElementById("uploadPrompt");
+  const fileActionBar    = document.getElementById("fileActionBar");
+
   if (uploadedFilename) uploadedFilename.textContent = file.name;
   if (uploadPrompt)
-    uploadPrompt.classList.add("opacity-0", "pointer-events-none"); // Hide prompt
+    uploadPrompt.classList.add("opacity-0", "pointer-events-none");
   if (fileActionBar) fileActionBar.classList.remove("hidden");
 
   // Parse CSV to get total rows
   const reader = new FileReader();
   reader.onload = function (e) {
     const text = e.target.result;
-    const lines = text.split("\n").filter((r) => r.trim()); // Remove blanks
-    const storyCount = Math.max(0, lines.length - 1); // Exclude header
-    
-    const simText = document.getElementById("simulateContainerText");
-    const simSlider = document.getElementById("simulateContainerSlider");
-    const volumeSlider = document.getElementById("volumeSlider");
+    const lines = text.split("\n").filter((r) => r.trim());
+    const storyCount = Math.max(0, lines.length - 1);
+
+    const simText     = document.getElementById("simulateContainerText");
+    const simSlider   = document.getElementById("simulateContainerSlider");
+    const volumeSlider= document.getElementById("volumeSlider");
     const volumeValue = document.getElementById("volumeValue");
-    
+
     if (volumeSlider) {
-        volumeSlider.max = storyCount;
+        volumeSlider.max   = storyCount;
         volumeSlider.value = Math.min(volumeSlider.value, storyCount);
         if (volumeValue) volumeValue.textContent = volumeSlider.value;
     }
-
     if (simText) {
         simText.querySelector("label").textContent = "Select Stories to Process";
         simText.querySelector("p").textContent = `Found ${storyCount} stories in CSV. Choose how many to process.`;
         simText.classList.remove("hidden");
     }
-    
-    if (simSlider) {
-        simSlider.classList.remove("hidden");
-    }
+    if (simSlider) simSlider.classList.remove("hidden");
   };
   reader.readAsText(file);
 }
 
 function removeFile() {
-  fileInput.value = ""; // Clear input
-  if (uploadPrompt)
-    uploadPrompt.classList.remove("opacity-0", "pointer-events-none"); // Show prompt
-  if (fileActionBar) fileActionBar.classList.add("hidden"); // Hide actions
-  
-  // Re-enable simulate UI to defaults
-  const simText = document.getElementById("simulateContainerText");
-  const simSlider = document.getElementById("simulateContainerSlider");
-  const volumeSlider = document.getElementById("volumeSlider");
+  const fileInput     = document.getElementById("fileInput");
+  const uploadPrompt  = document.getElementById("uploadPrompt");
+  const fileActionBar = document.getElementById("fileActionBar");
+
+  if (fileInput)    fileInput.value = "";
+  if (uploadPrompt) uploadPrompt.classList.remove("opacity-0", "pointer-events-none");
+  if (fileActionBar) fileActionBar.classList.add("hidden");
+
+  const simText     = document.getElementById("simulateContainerText");
+  const simSlider   = document.getElementById("simulateContainerSlider");
+  const volumeSlider= document.getElementById("volumeSlider");
   const volumeValue = document.getElementById("volumeValue");
-  
+
   if (volumeSlider) {
-      volumeSlider.max = 50;
+      volumeSlider.max   = 50;
       volumeSlider.value = Math.min(volumeSlider.value, 50);
-      if(volumeValue) volumeValue.textContent = volumeSlider.value;
+      if (volumeValue) volumeValue.textContent = volumeSlider.value;
   }
-  
   if (simText) {
       simText.querySelector("label").textContent = "Simulate Volume";
       simText.querySelector("p").textContent = "For demo purposes, choose how many dummy stories to generate.";
       simText.classList.add("hidden");
   }
-  
-  if (simSlider) {
-      simSlider.classList.add("hidden");
-  }
+  if (simSlider) simSlider.classList.add("hidden");
 }
 
 function previewFile() {
-  const file = fileInput.files[0];
+  const fileInput = document.getElementById("fileInput");
+  const file = fileInput ? fileInput.files[0] : null;
   if (!file) return;
 
   const reader = new FileReader();
@@ -372,8 +374,8 @@ function closePreview() {
 }
 
 // --- Batch Processing ---
-let batchFrChart = null;
-let batchCatChart = null;
+let isBatchFrPlotly = false; // true when the FR chart is rendered via Plotly
+let batchCatChart   = null;
 let batchResultsData = []; // Store results for export
 
 function setupBatchCharts() {
@@ -413,9 +415,7 @@ function setupBatchCharts() {
     };
 
     Plotly.newPlot('batchFrPlotly', data, layout, {responsive: true, displayModeBar: false});
-    
-    // Keep a reference flag or assign boolean so we know it's plotly now
-    batchFrChart = "plotly"; 
+    isBatchFrPlotly = true; // mark that the FR chart is using Plotly
   }  // Categories (Premium Radar Chart)
   const ctx2 = document.getElementById("batchCatChart");
   if (ctx2) {
@@ -592,13 +592,13 @@ function handleStreamData(data) {
     document.getElementById("nfrCount").textContent = stats.nfr_count;
     document.getElementById("avgTime").textContent = `${stats.avg_time}s`;
 
-    if (batchFrChart === "plotly") {
+    if (isBatchFrPlotly) {
       const dataUpdate = {
         labels: [["Total", "Functional", "Non-Functional"]],
         parents: [["", "Total", "Total"]],
         values: [[stats.total, stats.fr_count, stats.nfr_count]]
       };
-      // We only draw if total > 0 to avoid Plotly errors on 0 layout
+      // Only update if total > 0 to avoid Plotly errors on empty layout
       if (stats.total > 0) {
         Plotly.update('batchFrPlotly', dataUpdate);
       }
@@ -1142,13 +1142,15 @@ async function loadTechniqueComparison() {
     }
   });
 }
-// ✅ Load technique comparison chart
-loadTechniqueComparison();
+// Load charts and misc listeners after DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+  loadTechniqueComparison();
 
-// Misc: Update slider value
-document.addEventListener("input", (e) => {
-  if (e.target.id === "volumeSlider") {
-    document.getElementById("volumeValue").textContent = e.target.value;
-  }
+  // Update slider value display
+  document.addEventListener("input", (e) => {
+    if (e.target.id === "volumeSlider") {
+      const valEl = document.getElementById("volumeValue");
+      if (valEl) valEl.textContent = e.target.value;
+    }
+  });
 });
-

@@ -11,10 +11,27 @@ from dotenv import load_dotenv
 # Load API Keys
 # =========================
 load_dotenv()
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+GROQ_API_KEY   = os.getenv("GROQ_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 COHERE_API_KEY = os.getenv("COHERE_API_KEY")
 CLAUDE_API_KEY = os.getenv("CLAUDE_API_KEY")
+
+# =========================
+# Startup Validation
+# =========================
+import warnings as _warnings
+_KEY_MAP = {
+    "GROQ_API_KEY":   GROQ_API_KEY,
+    "GEMINI_API_KEY": GEMINI_API_KEY,
+    "COHERE_API_KEY": COHERE_API_KEY,
+    "CLAUDE_API_KEY": CLAUDE_API_KEY,
+}
+for _name, _val in _KEY_MAP.items():
+    if not _val:
+        _warnings.warn(
+            f"[code_integration] {_name} is not set — calls to this model will fail at runtime.",
+            stacklevel=2
+        )
 
 # =========================
 # Helper: clean response
