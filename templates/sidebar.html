@@ -65,6 +65,16 @@
         </svg>
         <span class="ml-3 hidden group-hover:block whitespace-nowrap fade-in">API Usage & Cost</span>
     </a>
+
+    <a href="{{ url_for('evaluate') }}"
+        class="sidebar-link flex items-center px-4 py-3 rounded-lg text-sm font-medium {% if page == 'evaluate' %}active bg-blue-500/10 text-blue-400 border-r-4 border-blue-500{% else %}text-gray-400 hover:text-white{% endif %} justify-center group-hover:justify-start">
+        <svg class="w-6 h-6 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4">
+            </path>
+        </svg>
+        <span class="ml-3 hidden group-hover:block whitespace-nowrap fade-in">Evaluate Model</span>
+    </a>
 </nav>
 
 <div class="px-6 py-2">
