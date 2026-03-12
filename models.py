@@ -48,3 +48,20 @@ class BatchResult(db.Model):
     classification = db.Column(db.String(50))
     category       = db.Column(db.String(255))
     latency        = db.Column(db.Float)
+
+    history = db.relationship("RequirementHistory", backref="result", lazy=True, cascade="all, delete-orphan")
+
+
+class RequirementHistory(db.Model):
+    __tablename__ = "requirement_history"
+
+    id                      = db.Column(db.Integer, primary_key=True)
+    batch_result_id         = db.Column(db.Integer, db.ForeignKey("batch_results.id", ondelete="CASCADE"), nullable=False)
+    user_id                 = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    previous_story          = db.Column(db.Text)
+    new_story               = db.Column(db.Text)
+    previous_classification = db.Column(db.String(50))
+    new_classification      = db.Column(db.String(50))
+    changed_at              = db.Column(db.DateTime, server_default=db.func.current_timestamp())
+
+    editor = db.relationship("User", backref="edits")

@@ -567,7 +567,6 @@ async function processBatch() {
     console.error(e);
   }
 }
-
 function handleStreamData(data) {
   if (data.type === "result") {
     // Collect data for export
@@ -613,27 +612,26 @@ function handleStreamData(data) {
     // Add Row
     const tableBody = document.getElementById("resultsTableBody");
     if (tableBody) {
-      // Remove "Processing..." loading row if it exists
       if (tableBody.querySelector('td[colspan="4"]')) {
         tableBody.innerHTML = "";
       }
 
       const item = data;
-      const row = document.createElement("tr");
-      row.className = "fade-in"; // Add animation
+      const row  = document.createElement("tr");
+      row.className = "fade-in";
+
       const isFR = item.result.classification === "FR";
       row.innerHTML = `
-                <td class="px-6 py-4 font-medium text-gray-900 dark:text-white">${item.story}</td>
-                <td class="px-6 py-4">
-                    <span class="${isFR ? "text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/30" : "text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900/30"} px-2 py-1 rounded text-xs font-bold border ${isFR ? "border-green-200 dark:border-green-500/30" : "border-red-200 dark:border-red-500/30"}">
-                        ${item.result.classification}
-                    </span>
-                </td>
-                <td class="px-6 py-4 text-gray-500 dark:text-gray-400">${item.result.category || "-"}</td>
-                <td class="px-6 py-4 text-gray-500 dark:text-gray-400 text-sm">${item.result.reason || "-"}</td>
-                <td class="px-6 py-4 font-mono text-gray-500">${item.result.latency}s</td>
-            `;
-      // Prepend or append? Append is more natural for stream
+        <td class="px-6 py-4 font-medium text-gray-900 dark:text-white">${item.story}</td>
+        <td class="px-6 py-4">
+          <span class="${isFR ? "text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/30" : "text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900/30"} px-2 py-1 rounded text-xs font-bold border ${isFR ? "border-green-200 dark:border-green-500/30" : "border-red-200 dark:border-red-500/30"}">
+            ${item.result.classification}
+          </span>
+        </td>
+        <td class="px-6 py-4 text-gray-500 dark:text-gray-400">${item.result.category || "-"}</td>
+        <td class="px-6 py-4 text-gray-500 dark:text-gray-400 text-sm">${item.result.reason || "-"}</td>
+        <td class="px-6 py-4 font-mono text-gray-500">${item.result.latency}s</td>
+      `;
       tableBody.appendChild(row);
     }
   }

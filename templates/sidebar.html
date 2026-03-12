@@ -75,6 +75,15 @@
         </svg>
         <span class="ml-3 hidden group-hover:block whitespace-nowrap fade-in">Evaluate Model</span>
     </a>
+    <a href="{{ url_for('history') }}"
+        class="sidebar-link flex items-center px-4 py-3 rounded-lg text-sm font-medium {% if page == 'history' %}active bg-emerald-500/10 text-emerald-400 border-r-4 border-emerald-500{% else %}text-gray-400 hover:text-white{% endif %} justify-center group-hover:justify-start">
+        <svg class="w-6 h-6 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z">
+            </path>
+        </svg>
+        <span class="ml-3 hidden group-hover:block whitespace-nowrap fade-in">Requirement History</span>
+    </a>
 </nav>
 
 <div class="px-6 py-2">

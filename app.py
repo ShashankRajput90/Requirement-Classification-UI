@@ -11,7 +11,7 @@ from authlib.integrations.flask_client import OAuth
 from sqlalchemy import func
 
 from code_integration import classify
-from models import db, User, BatchRun, BatchResult
+from models import db, User, BatchRun, BatchResult, RequirementHistory
 
 # Add to existing imports at top of app.py
 from sklearn.metrics import (
@@ -379,6 +379,7 @@ def batch():
                         )
                         db.session.add(result_row)
                         db.session.commit()
+                        res["id"] = result_row.id  # expose DB id to the stream
 
                 except Exception as e:
                     res = {"classification": "Error", "category": None, "latency": 0.0, "error": str(e)}
@@ -653,21 +654,8 @@ def run_evaluation():
     model    = request.form.get('model', 'ChatGPT')
     strategy = request.form.get('strategy', 'Zero-shot')
 
-    model_map = {
-        "ChatGPT": "groq_gpt",
-        "Gemini":  "gemini",
-        "Claude":  "claude",
-        "Groq":    "groq_llama3",
-        "Cohere":  "cohere",
-        "Mistral": "mistral"
-    }
-    strategy_map = {
-        "Zero-shot":        "zero_shot",
-        "Few-shot":         "few_shot",
-        "Chain-of-Thought": "chain_of_thought",
-        "Role-Based":       "role_based",
-        "ReAct":            "react"
-    }
+    model_map    = MODEL_MAP
+    strategy_map = {**STRATEGY_MAP, "Role-Based": "role_based", "ReAct": "react"}
     backend_model = model_map.get(model, "groq_gpt")
     technique     = strategy_map.get(strategy, "zero_shot")
 
@@ -808,6 +796,152 @@ def run_evaluation():
         "avg_conf_correct":   avg_conf_correct,
         "avg_conf_incorrect": avg_conf_incorrect,
     })
+
+
+# =========================
+# History Page
+# =========================
+@app.route('/history')
+@login_required
+def history():
+    return render_template('history.html', page='history')
+
+
+@app.route('/api/requirements/all')
+@login_required
+def get_all_requirements():
+    page      = request.args.get('page',     1,    type=int)
+    per_page  = request.args.get('per_page', 25,   type=int)
+    run_id    = request.args.get('run_id',   None, type=int)
+    clf       = request.args.get('cls',      None)
+    search    = request.args.get('q',        None)
+    model     = request.args.get('model',    None)
+
+    query = db.session.query(BatchResult)
+
+    if run_id:
+        query = query.filter(BatchResult.batch_run_id == run_id)
+    if clf:
+        query = query.filter(BatchResult.classification == clf)
+    if model:
+        query = query.filter(BatchResult.model == model)
+    if search:
+        query = query.filter(BatchResult.story.ilike(f"%{search}%"))
+
+    total = query.count()
+
+    sort = request.args.get('sort', 'newest')
+    if sort == 'oldest':
+        query = query.order_by(BatchResult.id.asc())
+    elif sort == 'fr_first':
+        query = query.order_by(BatchResult.classification.asc(), BatchResult.id.desc())
+    elif sort == 'nfr_first':
+        query = query.order_by(BatchResult.classification.desc(), BatchResult.id.desc())
+    elif sort == 'most_edits':
+        from models import RequirementHistory as _RH
+        edit_subq = (
+            db.session.query(
+                _RH.batch_result_id,
+                func.count(_RH.id).label("ec")
+            )
+            .group_by(_RH.batch_result_id)
+            .subquery()
+        )
+        query = (
+            query.outerjoin(edit_subq, BatchResult.id == edit_subq.c.batch_result_id)
+            .order_by(db.func.coalesce(edit_subq.c.ec, 0).desc(), BatchResult.id.desc())
+        )
+    else:  # newest
+        query = query.order_by(BatchResult.id.desc())
+
+    results = query.offset((page - 1) * per_page).limit(per_page).all()
+
+    from models import RequirementHistory as RH
+
+    data = []
+    for r in results:
+        edit_count = db.session.query(func.count(RH.id)).filter(RH.batch_result_id == r.id).scalar() or 0
+        run_ts = None
+        if r.run and r.run.created_at:
+            run_ts = r.run.created_at.strftime("%b %d, %Y %I:%M %p")
+        data.append({
+            "id":             r.id,
+            "story":          r.story,
+            "model":          r.model,
+            "classification": r.classification,
+            "category":       r.category,
+            "latency":        r.latency,
+            "batch_run_id":   r.batch_run_id,
+            "edit_count":     edit_count,
+            "created_at":     run_ts,
+        })
+
+    return jsonify({
+        "results": data,
+        "total":   total,
+        "page":    page,
+        "pages":   (total + per_page - 1) // per_page,
+    })
+
+
+# =========================
+# Requirement Version Control
+# =========================
+@app.route("/api/requirements/<int:result_id>/edit", methods=["POST"])
+@login_required
+def edit_requirement(result_id):
+    data      = request.get_json()
+    new_story = (data or {}).get("new_story", "").strip()
+
+    if not new_story:
+        return jsonify({"error": "new_story is required"}), 400
+
+    req = BatchResult.query.get_or_404(result_id)
+
+    # Only save history when something actually changed
+    if req.story != new_story:
+        history = RequirementHistory(
+            batch_result_id         = req.id,
+            user_id                 = current_user.id,
+            previous_story          = req.story,
+            new_story               = new_story,
+            previous_classification = req.classification,
+            new_classification      = req.classification  # classification unchanged on text edit
+        )
+        db.session.add(history)
+        req.story = new_story
+        db.session.commit()
+
+    return jsonify({"success": True, "message": "Requirement updated."})
+
+
+@app.route("/api/requirements/<int:result_id>/history")
+@login_required
+def get_requirement_history(result_id):
+    # Make sure the result exists
+    BatchResult.query.get_or_404(result_id)
+
+    entries = (
+        RequirementHistory.query
+        .filter_by(batch_result_id=result_id)
+        .order_by(RequirementHistory.changed_at.desc())
+        .all()
+    )
+
+    data = [
+        {
+            "id":                      e.id,
+            "previous_story":          e.previous_story,
+            "new_story":               e.new_story,
+            "previous_classification": e.previous_classification,
+            "new_classification":      e.new_classification,
+            "changed_at":              e.changed_at.strftime("%b %d, %Y at %I:%M %p") if e.changed_at else "",
+            "edited_by":               e.editor.name if e.editor else "Unknown"
+        }
+        for e in entries
+    ]
+
+    return jsonify(data)
 
 
 # =========================
