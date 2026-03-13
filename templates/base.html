@@ -86,6 +86,137 @@
     <!-- Scripts -->
     <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
     {% block scripts %}{% endblock %}
+
+    <!-- ============================================================ -->
+    <!-- Global Batch Progress Pill (visible from any page)           -->
+    <!-- ============================================================ -->
+    <div id="batchProgressPill"
+        class="hidden fixed bottom-6 right-6 z-50
+               flex items-center gap-3
+               px-4 py-3 rounded-2xl
+               bg-white/90 dark:bg-slate-800/95
+               border border-blue-200 dark:border-blue-500/30
+               shadow-[0_8px_32px_rgba(59,130,246,0.18)] dark:shadow-[0_8px_32px_rgba(99,102,241,0.22)]
+               backdrop-blur-md
+               translate-y-4 opacity-0
+               transition-all duration-500 ease-out"
+        style="min-width:260px; max-width:320px;">
+
+        <!-- Spinner icon -->
+        <span id="batchPillIcon" class="shrink-0">
+            <svg class="animate-spin w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+            </svg>
+        </span>
+
+        <!-- Text + bar -->
+        <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between mb-1.5">
+                <span class="text-xs font-semibold text-gray-700 dark:text-gray-200" id="batchPillLabel">Processing…</span>
+                <span class="text-xs text-gray-400 dark:text-gray-500 font-mono" id="batchPillCount"></span>
+            </div>
+            <!-- Progress bar track -->
+            <div class="h-1.5 bg-gray-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                <div id="batchPillBar"
+                    class="h-full rounded-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-500"
+                    style="width:0%">
+                </div>
+            </div>
+        </div>
+
+        <!-- Jump link -->
+        <a href="/batch" title="Go to Batch page"
+            class="shrink-0 p-1.5 rounded-lg text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+            </svg>
+        </a>
+    </div>
+
+    <script>
+    (function () {
+        const pill    = document.getElementById('batchProgressPill');
+        const bar     = document.getElementById('batchPillBar');
+        const label   = document.getElementById('batchPillLabel');
+        const count   = document.getElementById('batchPillCount');
+        const icon    = document.getElementById('batchPillIcon');
+        let pollTimer = null;
+        let doneTimer = null;
+        let isRunning = false;
+
+        const IDLE_INTERVAL    = 10000;  // 10s when nothing is happening
+        const RUNNING_INTERVAL = 2500;   // 2.5s during active batch
+
+        function showPill() {
+            pill.classList.remove('hidden');
+            requestAnimationFrame(() => {
+                pill.classList.remove('translate-y-4', 'opacity-0');
+            });
+        }
+
+        function hidePill() {
+            pill.classList.add('translate-y-4', 'opacity-0');
+            setTimeout(() => pill.classList.add('hidden'), 500);
+        }
+
+        function setInterval_(ms) {
+            // Restart the poll timer at the given cadence
+            if (pollTimer) clearInterval(pollTimer);
+            pollTimer = setInterval(pollStatus, ms);
+        }
+
+        async function pollStatus() {
+            try {
+                const res  = await fetch('/api/batch/status');
+                if (!res.ok) return;
+                const data = await res.json();
+
+                if (data.status === 'running') {
+                    if (!isRunning) {
+                        isRunning = true;
+                        setInterval_(RUNNING_INTERVAL);  // speed up
+                    }
+                    showPill();
+                    const pct = data.total > 0 ? Math.round((data.processed / data.total) * 100) : 0;
+                    bar.style.width   = pct + '%';
+                    label.textContent = 'Batch Processing…';
+                    count.textContent = `${data.processed} / ${data.total}`;
+                    icon.innerHTML = `<svg class="animate-spin w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                    </svg>`;
+
+                } else if (data.status === 'done') {
+                    isRunning = false;
+                    setInterval_(IDLE_INTERVAL);  // slow back down
+                    bar.style.width   = '100%';
+                    bar.className     = bar.className.replace('from-blue-500 to-purple-500', 'from-emerald-500 to-teal-500');
+                    label.textContent = 'Batch Complete ✓';
+                    count.textContent = `${data.total} / ${data.total}`;
+                    icon.innerHTML = `<svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>`;
+                    clearTimeout(doneTimer);
+                    doneTimer = setTimeout(hidePill, 4000);
+
+                } else {
+                    // idle
+                    if (isRunning) {
+                        isRunning = false;
+                        setInterval_(IDLE_INTERVAL);
+                    }
+                    hidePill();
+                }
+            } catch (_) { /* silent fail — not logged in or network issue */ }
+        }
+
+        // Start with slow idle polling
+        pollTimer = setInterval(pollStatus, IDLE_INTERVAL);
+        pollStatus(); // immediate first check
+    })();
+    </script>
 </body>
 
 </html>

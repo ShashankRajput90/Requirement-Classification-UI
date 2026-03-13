@@ -2,6 +2,12 @@ import re
 import json
 import time
 import os
+import threading
+
+# Thread-safe per-user batch progress store
+# {user_id: {"total": int, "processed": int, "status": "running"|"done"|"idle", "run_id": int}}
+_batch_progress: dict = {}
+_batch_progress_lock = threading.Lock()
 
 import pandas as pd
 from flask import Flask, render_template, request, jsonify, Response, stream_with_context, session, redirect, url_for
@@ -293,6 +299,17 @@ def single():
 
 
 # =========================
+# Batch Status
+# =========================
+@app.route('/api/batch/status')
+@login_required
+def batch_status():
+    with _batch_progress_lock:
+        prog = _batch_progress.get(current_user.id, {"status": "idle"})
+    return jsonify(prog)
+
+
+# =========================
 # Batch Route
 # =========================
 @app.route('/batch', methods=['GET', 'POST'])
@@ -354,6 +371,15 @@ def batch():
             processed = 0
             category_counts = {c: 0 for c in CATEGORIES}
 
+            # Mark as running in the global progress store
+            with _batch_progress_lock:
+                _batch_progress[user_id] = {
+                    "status": "running",
+                    "total": total_rows,
+                    "processed": 0,
+                    "run_id": batch_run_id,
+                }
+
             for _, row in sampled_df.iterrows():
                 story = row['story']
                 try:
@@ -398,6 +424,11 @@ def batch():
                 total_time += res.get("latency", 0)
                 processed += 1
 
+                # Update global progress store
+                with _batch_progress_lock:
+                    if user_id in _batch_progress:
+                        _batch_progress[user_id]["processed"] = processed
+
                 yield json.dumps({
                     "type": "result",
                     "story": story,
@@ -421,6 +452,11 @@ def batch():
                     "category_counts": category_counts
                 }
             }) + "\n"
+
+            # Mark done so global progress bar knows to stop
+            with _batch_progress_lock:
+                if user_id in _batch_progress:
+                    _batch_progress[user_id]["status"] = "done"
 
         return Response(stream_with_context(generate()), mimetype='application/x-ndjson')
 
