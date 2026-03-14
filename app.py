@@ -9,6 +9,9 @@ import threading
 _batch_progress: dict = {}
 _batch_progress_lock = threading.Lock()
 
+# Set of user_ids that have requested a stop
+_batch_stop_signals: set = set()
+
 import pandas as pd
 from flask import Flask, render_template, request, jsonify, Response, stream_with_context, session, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
@@ -299,7 +302,7 @@ def single():
 
 
 # =========================
-# Batch Status
+# Batch Status & Stop
 # =========================
 @app.route('/api/batch/status')
 @login_required
@@ -307,6 +310,17 @@ def batch_status():
     with _batch_progress_lock:
         prog = _batch_progress.get(current_user.id, {"status": "idle"})
     return jsonify(prog)
+
+
+@app.route('/api/batch/stop', methods=['POST'])
+@login_required
+def batch_stop():
+    uid = current_user.id
+    _batch_stop_signals.add(uid)
+    with _batch_progress_lock:
+        if uid in _batch_progress:
+            _batch_progress[uid]["status"] = "stopped"
+    return jsonify({"success": True})
 
 
 # =========================
@@ -371,6 +385,9 @@ def batch():
             processed = 0
             category_counts = {c: 0 for c in CATEGORIES}
 
+            # Clear any previous stop signal for this user
+            _batch_stop_signals.discard(user_id)
+
             # Mark as running in the global progress store
             with _batch_progress_lock:
                 _batch_progress[user_id] = {
@@ -381,6 +398,15 @@ def batch():
                 }
 
             for _, row in sampled_df.iterrows():
+                # Check for stop signal before each story
+                if user_id in _batch_stop_signals:
+                    _batch_stop_signals.discard(user_id)
+                    with _batch_progress_lock:
+                        if user_id in _batch_progress:
+                            _batch_progress[user_id]["status"] = "stopped"
+                    yield json.dumps({"type": "stopped"}) + "\n"
+                    return
+
                 story = row['story']
                 try:
                     start_t = time.time()

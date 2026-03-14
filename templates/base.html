@@ -133,6 +133,13 @@
                     d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
             </svg>
         </a>
+        <!-- Stop button -->
+        <button id="batchStopBtn" onclick="stopBatch()" title="Stop batch processing"
+            class="shrink-0 p-1.5 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+        </button>
     </div>
 
     <script>
@@ -142,6 +149,7 @@
         const label   = document.getElementById('batchPillLabel');
         const count   = document.getElementById('batchPillCount');
         const icon    = document.getElementById('batchPillIcon');
+        const stopBtn = document.getElementById('batchStopBtn');
         let pollTimer = null;
         let doneTimer = null;
         let isRunning = false;
@@ -167,6 +175,14 @@
             pollTimer = setInterval(pollStatus, ms);
         }
 
+        async function stopBatch() {
+            try {
+                stopBtn.disabled = true;
+                label.textContent = 'Stopping…';
+                await fetch('/api/batch/stop', { method: 'POST' });
+            } catch (_) {}
+        }
+
         async function pollStatus() {
             try {
                 const res  = await fetch('/api/batch/status');
@@ -176,6 +192,8 @@
                 if (data.status === 'running') {
                     if (!isRunning) {
                         isRunning = true;
+                        stopBtn.disabled = false;
+                        stopBtn.classList.remove('hidden');
                         setInterval_(RUNNING_INTERVAL);  // speed up
                     }
                     showPill();
@@ -190,6 +208,7 @@
 
                 } else if (data.status === 'done') {
                     isRunning = false;
+                    stopBtn.classList.add('hidden');
                     setInterval_(IDLE_INTERVAL);  // slow back down
                     bar.style.width   = '100%';
                     bar.className     = bar.className.replace('from-blue-500 to-purple-500', 'from-emerald-500 to-teal-500');
@@ -201,10 +220,25 @@
                     clearTimeout(doneTimer);
                     doneTimer = setTimeout(hidePill, 4000);
 
+                } else if (data.status === 'stopped') {
+                    isRunning = false;
+                    stopBtn.classList.add('hidden');
+                    setInterval_(IDLE_INTERVAL);
+                    bar.style.width   = bar.style.width;  // freeze at current %
+                    bar.className     = bar.className.replace('from-blue-500 to-purple-500', 'from-red-500 to-orange-400');
+                    label.textContent = 'Stopped';
+                    count.textContent = '';
+                    icon.innerHTML = `<svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>`;
+                    clearTimeout(doneTimer);
+                    doneTimer = setTimeout(hidePill, 3000);
+
                 } else {
                     // idle
                     if (isRunning) {
                         isRunning = false;
+                        stopBtn.classList.add('hidden');
                         setInterval_(IDLE_INTERVAL);
                     }
                     hidePill();

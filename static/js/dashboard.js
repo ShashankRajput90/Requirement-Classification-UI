@@ -634,6 +634,27 @@ function handleStreamData(data) {
       `;
       tableBody.appendChild(row);
     }
+  } else if (data.type === "stopped") {
+    // Batch was cancelled by the user
+    const submitBtn = document.getElementById("submitBtn");
+    if (submitBtn) {
+      submitBtn.disabled    = false;
+      submitBtn.textContent = "Start Processing";
+    }
+    const tableBody = document.getElementById("resultsTableBody");
+    if (tableBody && batchResultsData.length === 0) {
+      tableBody.innerHTML = `<tr><td colspan="5" class="px-6 py-8 text-center text-gray-400">
+        <span class="inline-flex items-center gap-2">
+          <svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+          Processing stopped.
+        </span>
+      </td></tr>`;
+    }
+    // Enable export if we got any rows before stopping
+    const exportBtn = document.getElementById("exportBtn");
+    if (exportBtn && batchResultsData.length > 0) exportBtn.disabled = false;
   }
 }
 
