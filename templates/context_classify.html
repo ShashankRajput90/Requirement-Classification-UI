@@ -1,0 +1,399 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- Header -->
+    <div class="text-center">
+        <h2 class="text-3xl font-bold text-gray-900 dark:text-white">Context-Aware Classification</h2>
+        <p class="text-gray-600 dark:text-gray-400 mt-2">
+            Classify requirements with domain knowledge — gets more accurate results than generic classification.
+        </p>
+    </div>
+
+    <!-- What's different banner -->
+    <div class="glass-card p-4 rounded-xl bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-700/40">
+        <div class="flex items-start gap-3">
+            <svg class="w-5 h-5 text-purple-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M13 10V3L4 14h7v7l9-11h-7z"/>
+            </svg>
+            <div class="text-sm text-purple-800 dark:text-purple-300">
+                <strong>What's different here?</strong> The prompt is enriched with your system's domain
+                (Healthcare, Banking, etc.) and stakeholder context before being sent to the model.
+                This reduces false positives and improves NFR type accuracy.
+                Each story also gets an <strong>RQI Score</strong> (0–10) measuring how well-written it is.
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+
+        <!-- LEFT: Input Panel -->
+        <div class="space-y-4">
+
+            <div class="glass-card p-6 rounded-2xl bg-white/70 dark:bg-slate-800/70 space-y-4">
+                <h3 class="font-semibold text-gray-900 dark:text-white">Classification Input</h3>
+
+                <!-- Domain Selector -->
+                <div>
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">System Domain</label>
+                    <select id="domainSelect" onchange="updateDomainPreview()"
+                        class="w-full mt-1 themed-input rounded-lg p-2.5 text-sm">
+                        {% for domain in domains %}
+                        <option value="{{ domain }}">{{ domain }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Domain Preview Card -->
+                <div id="domainPreview"
+                    class="p-3 rounded-lg bg-gray-50 dark:bg-slate-900/50 border border-gray-200 dark:border-slate-700/50 text-xs text-gray-500 dark:text-gray-400 space-y-1">
+                    <p id="domainSystem" class="font-medium text-gray-700 dark:text-gray-300"></p>
+                    <p id="domainStakeholders"></p>
+                </div>
+
+                <!-- Story Textarea -->
+                <div>
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">User Story / Requirement</label>
+                    <textarea id="contextStoryInput" rows="4"
+                        class="w-full mt-1 themed-input rounded-xl p-4 text-base focus:ring-2 focus:ring-purple-500 transition-all placeholder-gray-400 dark:placeholder-gray-600 resize-none shadow-inner"
+                        placeholder="e.g., The system shall process payments within 3 seconds."></textarea>
+                </div>
+
+                <!-- Model + Strategy -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Model</label>
+                        <select id="contextModelSelect" class="w-full mt-1 themed-input rounded-lg p-2.5 text-sm">
+                            <option value="ChatGPT">ChatGPT-4o</option>
+                            <option value="Gemini">Gemini 2.5 Pro</option>
+                            <option value="Claude">Claude 3 Haiku</option>
+                            <option value="Groq">Llama 3 (Groq)</option>
+                            <option value="Cohere">Cohere Command-R+</option>
+                            <option value="Mistral">Mistral (Local)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Strategy</label>
+                        <select id="contextStrategySelect" class="w-full mt-1 themed-input rounded-lg p-2.5 text-sm">
+                            <option value="Zero-shot">Zero-shot</option>
+                            <option value="Few-shot">Few-shot</option>
+                            <option value="Chain-of-Thought">Chain-of-Thought</option>
+                            <option value="Role-Based">Role-Based</option>
+                            <option value="ReAct">ReAct</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Error Banner -->
+                <div id="contextError"
+                    class="hidden items-center gap-3 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                    </svg>
+                    <span id="contextErrorText"></span>
+                </div>
+
+                <!-- Buttons Row -->
+                <div class="flex gap-3 pt-2 border-t border-gray-200 dark:border-slate-700">
+                    <button onclick="runContextClassify()"
+                        class="flex-1 bg-purple-600 hover:bg-purple-500 text-white font-semibold py-2.5 px-4 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                        </svg>
+                        Classify with Context
+                    </button>
+                    <button onclick="runRQIOnly()" title="Get RQI score without full classification"
+                        class="bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-300 font-semibold py-2.5 px-4 rounded-xl transition-all flex items-center gap-2 text-sm">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                        </svg>
+                        RQI Only
+                    </button>
+                </div>
+            </div>
+
+            <!-- RQI Criteria Breakdown (shown after RQI computation) -->
+            <div id="rqiBreakdownCard" class="hidden glass-card p-6 rounded-2xl bg-white/70 dark:bg-slate-800/70">
+                <h3 class="font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                    </svg>
+                    RQI Criteria Breakdown
+                </h3>
+                <div id="rqiCriteriaList" class="grid grid-cols-1 gap-1.5 max-h-64 overflow-y-auto pr-1"></div>
+            </div>
+        </div>
+
+        <!-- RIGHT: Results Panel -->
+        <div class="space-y-4">
+
+            <!-- Loading -->
+            <div id="contextLoading" class="hidden glass-card p-12 rounded-2xl bg-white/70 dark:bg-slate-800/70 flex flex-col items-center justify-center">
+                <div class="relative w-14 h-14 mb-4">
+                    <div class="absolute inset-0 border-4 border-purple-500/30 rounded-full"></div>
+                    <div class="absolute inset-0 border-4 border-purple-500 rounded-full border-t-transparent animate-spin"></div>
+                </div>
+                <p class="text-gray-400 animate-pulse text-sm">Classifying with domain context...</p>
+            </div>
+
+            <!-- Classification Result -->
+            <div id="contextResultCard" class="hidden glass-card p-6 rounded-2xl bg-white/70 dark:bg-slate-800/70">
+                <h3 class="font-semibold text-gray-900 dark:text-white mb-4">Classification Result</h3>
+
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <!-- Type Badge -->
+                    <div class="flex flex-col items-center justify-center p-4 bg-gray-50 dark:bg-slate-900/50 rounded-xl border border-gray-100 dark:border-slate-700/50">
+                        <span class="text-xs text-gray-400 uppercase font-bold mb-2">Type</span>
+                        <div id="ctxBadge" class="text-xl font-bold px-4 py-2 rounded-lg border">--</div>
+                        <p id="ctxCategory" class="text-sm text-blue-400 font-medium mt-2">--</p>
+                    </div>
+
+                    <!-- RQI Score -->
+                    <div class="flex flex-col items-center justify-center p-4 bg-gray-50 dark:bg-slate-900/50 rounded-xl border border-gray-100 dark:border-slate-700/50">
+                        <span class="text-xs text-gray-400 uppercase font-bold mb-2">RQI Score</span>
+                        <div id="rqiScore" class="text-3xl font-bold">--</div>
+                        <div id="rqiLabel" class="text-sm font-medium mt-1">--</div>
+                        <div class="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-1.5 mt-2">
+                            <div id="rqiBar" class="h-1.5 rounded-full transition-all" style="width:0%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Domain used -->
+                <div class="mb-3 flex items-center gap-2 text-sm">
+                    <span class="text-gray-400">Domain:</span>
+                    <span id="ctxDomain" class="font-medium text-purple-500 bg-purple-50 dark:bg-purple-900/20 px-2 py-0.5 rounded-full text-xs">--</span>
+                    <span class="text-gray-400 ml-2">Model:</span>
+                    <span id="ctxModel" class="text-gray-600 dark:text-gray-300 text-xs font-mono">--</span>
+                    <span class="text-gray-400 ml-auto text-xs" id="ctxLatency">--</span>
+                </div>
+
+                <!-- Reason -->
+                <div class="p-3 bg-gray-50 dark:bg-slate-900/50 rounded-lg border border-gray-200 dark:border-slate-700/50">
+                    <p class="text-xs text-gray-400 uppercase font-bold mb-1">Reason</p>
+                    <p id="ctxReason" class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">--</p>
+                </div>
+            </div>
+
+            <!-- RQI Score Card (standalone, shown when RQI Only button used) -->
+            <div id="rqiOnlyCard" class="hidden glass-card p-6 rounded-2xl bg-white/70 dark:bg-slate-800/70">
+                <h3 class="font-semibold text-gray-900 dark:text-white mb-4">Requirement Quality Index</h3>
+                <div class="flex items-center gap-6">
+                    <div class="text-center">
+                        <div id="rqiOnlyScore" class="text-5xl font-bold">--</div>
+                        <div id="rqiOnlyLabel" class="text-sm font-medium mt-1">--</div>
+                        <p class="text-xs text-gray-400 mt-1">out of 10</p>
+                    </div>
+                    <div class="flex-1">
+                        <div class="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-3">
+                            <div id="rqiOnlyBar" class="h-3 rounded-full transition-all" style="width:0%"></div>
+                        </div>
+                        <div class="flex justify-between text-xs text-gray-400 mt-1">
+                            <span>0 Poor</span>
+                            <span>5 Fair</span>
+                            <span>10 Excellent</span>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-xs text-gray-400 mt-4">
+                    Based on 15 quality criteria including clarity, verifiability, atomicity, and traceability.
+                </p>
+            </div>
+
+            <!-- Placeholder when nothing has been run -->
+            <div id="contextPlaceholder"
+                class="glass-card p-12 rounded-2xl bg-white/70 dark:bg-slate-800/70 flex flex-col items-center justify-center text-center">
+                <div class="w-16 h-16 rounded-full bg-purple-100 dark:bg-purple-900/20 flex items-center justify-center mb-4">
+                    <svg class="w-8 h-8 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                            d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064"/>
+                    </svg>
+                </div>
+                <p class="text-gray-400 font-medium">Select a domain and enter a requirement</p>
+                <p class="text-gray-500 text-sm mt-1">Results will appear here</p>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+// Domain metadata passed from Flask
+
+
+// Simpler approach — hardcode in JS since it matches context_utils.py
+const DOMAINS = {
+    "Software Application": {
+        system: "Software system handling user accounts and transactions",
+        stakeholders: "End users, developers, administrators"
+    },
+    "Healthcare System": {
+        system: "Electronic health record system storing patient data",
+        stakeholders: "Doctors, nurses, hospital admins, patients"
+    },
+    "E-Commerce": {
+        system: "Online shopping platform managing products and orders",
+        stakeholders: "Customers, sellers, admins"
+    },
+    "Banking System": {
+        system: "Banking system handling financial transactions",
+        stakeholders: "Customers, bank staff, regulators"
+    },
+    "IoT System": {
+        system: "Smart IoT system managing connected sensors",
+        stakeholders: "Operators, engineers, users"
+    }
+};
+
+function updateDomainPreview() {
+    const domain = document.getElementById('domainSelect').value;
+    const info   = DOMAINS[domain];
+    if (!info) return;
+    document.getElementById('domainSystem').textContent       = '🏢 ' + info.system;
+    document.getElementById('domainStakeholders').textContent = '👥 ' + info.stakeholders;
+}
+
+// Run on page load
+updateDomainPreview();
+
+// ── Classify with Context ────────────────────────────────────
+async function runContextClassify() {
+    const story    = document.getElementById('contextStoryInput').value.trim();
+    const domain   = document.getElementById('domainSelect').value;
+    const model    = document.getElementById('contextModelSelect').value;
+    const strategy = document.getElementById('contextStrategySelect').value;
+
+    hideContextError();
+
+    if (!story) { showContextError("Please enter a requirement."); return; }
+
+    document.getElementById('contextPlaceholder').classList.add('hidden');
+    document.getElementById('contextResultCard').classList.add('hidden');
+    document.getElementById('rqiOnlyCard').classList.add('hidden');
+    document.getElementById('contextLoading').classList.remove('hidden');
+
+    try {
+        const resp = await fetch('/api/context-classify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ story, domain, model, strategy })
+        });
+        const data = await resp.json();
+
+        if (!resp.ok || data.error) { showContextError(data.error || "Classification failed."); return; }
+        renderContextResult(data);
+        renderRqiBreakdown(data.rqi);
+
+    } catch (err) {
+        showContextError("Network error: " + err.message);
+    } finally {
+        document.getElementById('contextLoading').classList.add('hidden');
+    }
+}
+
+// ── RQI Only ─────────────────────────────────────────────────
+async function runRQIOnly() {
+    const story = document.getElementById('contextStoryInput').value.trim();
+    if (!story) { showContextError("Please enter a requirement."); return; }
+
+    hideContextError();
+    document.getElementById('contextPlaceholder').classList.add('hidden');
+    document.getElementById('contextResultCard').classList.add('hidden');
+    document.getElementById('rqiOnlyCard').classList.add('hidden');
+    document.getElementById('contextLoading').classList.remove('hidden');
+
+    try {
+        const resp = await fetch('/api/rqi', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ story })
+        });
+        const data = await resp.json();
+
+        if (!resp.ok || data.error) { showContextError(data.error || "RQI failed."); return; }
+
+        renderRQIOnly(data.rqi);
+        renderRqiBreakdown(data.rqi);
+
+    } catch (err) {
+        showContextError("Network error: " + err.message);
+    } finally {
+        document.getElementById('contextLoading').classList.add('hidden');
+    }
+}
+
+// ── Render Classification Result ──────────────────────────────
+function renderContextResult(data) {
+    const isNFR = data.classification === 'NFR';
+
+    const badge = document.getElementById('ctxBadge');
+    badge.textContent = data.classification;
+    badge.className = isNFR
+        ? 'text-xl font-bold px-4 py-2 rounded-lg border bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 border-red-300 dark:border-red-700'
+        : 'text-xl font-bold px-4 py-2 rounded-lg border bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 border-green-300 dark:border-green-700';
+
+    document.getElementById('ctxCategory').textContent = data.category || 'N/A';
+    document.getElementById('ctxDomain').textContent   = data.domain;
+    document.getElementById('ctxModel').textContent    = data.model + ' / ' + data.strategy;
+    document.getElementById('ctxLatency').textContent  = data.latency + 's';
+    document.getElementById('ctxReason').textContent   = data.reason;
+
+    // RQI in result card
+    const rqi = data.rqi;
+    document.getElementById('rqiScore').textContent = rqi.final_score;
+    document.getElementById('rqiLabel').textContent = rqi.label;
+    document.getElementById('rqiLabel').className   = `text-sm font-medium mt-1 text-${rqi.color}-500`;
+    document.getElementById('rqiBar').style.width   = (rqi.final_score * 10) + '%';
+    document.getElementById('rqiBar').className     = `h-1.5 rounded-full transition-all bg-${rqi.color}-500`;
+
+    document.getElementById('contextResultCard').classList.remove('hidden');
+}
+
+// ── Render RQI Only Card ──────────────────────────────────────
+function renderRQIOnly(rqi) {
+    document.getElementById('rqiOnlyScore').textContent = rqi.final_score;
+    document.getElementById('rqiOnlyLabel').textContent = rqi.label;
+    document.getElementById('rqiOnlyLabel').className   = `text-sm font-medium mt-1 text-${rqi.color}-500`;
+    document.getElementById('rqiOnlyBar').style.width   = (rqi.final_score * 10) + '%';
+    document.getElementById('rqiOnlyBar').className     = `h-3 rounded-full transition-all bg-${rqi.color}-500`;
+    document.getElementById('rqiOnlyCard').classList.remove('hidden');
+}
+
+// ── Render RQI Criteria Breakdown ─────────────────────────────
+function renderRqiBreakdown(rqi) {
+    const container = document.getElementById('rqiCriteriaList');
+    // rqi.breakdown is set via the /api/rqi route in the RQI-only case
+    // For full classify, we use rule_score but no breakdown — just show score summary
+    const score = rqi.final_score;
+    const rule  = rqi.rule_score;
+    const llm   = rqi.llm_score;
+
+    let html = `<div class="text-xs text-gray-500 mb-2">
+        Rule-Based: <strong>${rule}/10</strong>
+        ${llm !== null ? ` &nbsp;·&nbsp; LLM: <strong>${llm}/10</strong>` : ''}
+        &nbsp;·&nbsp; Final: <strong class="text-blue-400">${score}/10</strong>
+    </div>`;
+
+    container.innerHTML = html;
+    document.getElementById('rqiBreakdownCard').classList.remove('hidden');
+}
+
+function showContextError(msg) {
+    const el = document.getElementById('contextError');
+    document.getElementById('contextErrorText').textContent = msg;
+    el.classList.remove('hidden');
+    el.classList.add('flex');
+    document.getElementById('contextLoading').classList.add('hidden');
+}
+
+function hideContextError() {
+    const el = document.getElementById('contextError');
+    el.classList.add('hidden');
+    el.classList.remove('flex');
+}
+</script>
+{% endblock %}

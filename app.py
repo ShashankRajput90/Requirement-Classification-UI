@@ -27,6 +27,19 @@ from sklearn.metrics import (
     accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
 )
 
+# Add to existing imports in app.py
+from context_utils import (
+    DOMAIN_CONTEXTS,
+    DOMAIN_LIST,
+    create_system_context,
+    create_context_prompt,
+    extract_is_nfr,
+    extract_nfr_type,
+    extract_reason,
+    calculate_combined_rqi,
+    get_rqi_criteria_breakdown
+)
+
 app = Flask(__name__)
 
 # =========================
@@ -1005,6 +1018,177 @@ def get_requirement_history(result_id):
 
     return jsonify(data)
 
+# =========================
+# Context-Aware Classification Routes
+# =========================
+# @app.route('/context-classify', methods=['GET'])
+# @login_required
+# def context_classify():
+#     return render_template('context_classify.html', 
+#                            page='context_classify',
+#                            domains=DOMAIN_LIST)
+@app.route('/context-classify', methods=['GET'])
+@login_required
+def context_classify():
+    return render_template('context_classify.html',
+                           page='context_classify',
+                           domains=DOMAIN_LIST,
+                           domain_contexts=DOMAIN_CONTEXTS)
+
+
+@app.route('/api/context-classify', methods=['POST'])
+@login_required
+def run_context_classify():
+    if not request.is_json:
+        return jsonify({"error": "Request must be JSON"}), 400
+
+    data     = request.json
+    story    = data.get('story', '').strip()
+    domain   = data.get('domain', 'Software Application')
+    model    = data.get('model', 'ChatGPT')
+    strategy = data.get('strategy', 'Zero-shot')
+
+    if not story:
+        return jsonify({"error": "Story cannot be empty"}), 400
+    if len(story) > 2000:
+        return jsonify({"error": "Story too long (max 2000 chars)"}), 400
+
+    model_map = {
+        "ChatGPT": "groq_gpt",
+        "Gemini":  "gemini",
+        "Claude":  "claude",
+        "Groq":    "groq_llama3",
+        "Cohere":  "cohere",
+        "Mistral": "mistral"
+    }
+    strategy_map = {
+        "Zero-shot":        "zero_shot",
+        "Few-shot":         "few_shot",
+        "Chain-of-Thought": "chain_of_thought",
+        "Role-Based":       "role_based",
+        "ReAct":            "react"
+    }
+    backend_model = model_map.get(model, "groq_gpt")
+    technique     = strategy_map.get(strategy, "zero_shot")
+
+    # Build domain-aware system context
+    domain_info    = DOMAIN_CONTEXTS.get(domain, DOMAIN_CONTEXTS["Software Application"])
+    system_context = create_system_context(
+        domain,
+        domain_info["stakeholders"],
+        domain_info["system"]
+    )
+
+    # Build context-aware prompt (no neighboring stories for single classify)
+    prompt = create_context_prompt(
+        previous_context="None",
+        current_req=story,
+        next_context="None",
+        technique=technique,
+        system_context=system_context
+    )
+
+    try:
+        start_t = time.time()
+        # classify() in code_integration.py expects (story, technique)
+        # but here we pass the full prompt as the story since it's pre-built
+        raw_response, status_code = classify(backend_model, prompt, technique)
+        latency = round(time.time() - start_t, 2)
+
+        if status_code != 200:
+            return jsonify(raw_response), status_code
+
+        # Parse the context-format response (Is NFR / NFR Type / Reason)
+        is_nfr    = extract_is_nfr(raw_response)
+        nfr_type  = extract_nfr_type(raw_response)
+        reason    = extract_reason(raw_response)
+
+        classification = "NFR" if is_nfr == "Yes" else "FR"
+        if classification == "FR":
+            nfr_type = None
+
+        # Rule-based RQI (fast, no extra API call)
+        rqi = calculate_combined_rqi(story)
+
+        return jsonify({
+            "classification":      classification,
+            "category":            nfr_type,
+            "classification_full": f"{classification} - {nfr_type}" if nfr_type else classification,
+            "reason":              reason,
+            "model":               model,
+            "strategy":            strategy,
+            "domain":              domain,
+            "latency":             latency,
+            "rqi":                 rqi,
+            "raw_response":        raw_response
+        }), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/rqi', methods=['POST'])
+@login_required
+def compute_rqi():
+    """
+    Compute RQI for a story without running full classification.
+    Returns score + 15-criteria breakdown.
+    """
+    if not request.is_json:
+        return jsonify({"error": "Request must be JSON"}), 400
+
+    story = request.json.get('story', '').strip()
+    if not story:
+        return jsonify({"error": "Story required"}), 400
+
+    rqi       = calculate_combined_rqi(story)
+    breakdown = get_rqi_criteria_breakdown(story)
+
+    return jsonify({
+        "rqi":       rqi,
+        "breakdown": breakdown
+    }), 200
+
+
+@app.route('/api/context-comparison')
+@login_required
+def context_comparison_data():
+    """
+    Serves the context vs baseline comparison data
+    generated by compare_context_vs_baseline.py.
+    """
+    import glob
+
+    context_binary_file  = "comparison_results/binary_average_comparison.csv"
+    improvement_file     = "comparison_results/binary_improvement.csv"
+
+    if not os.path.exists(context_binary_file):
+        return jsonify({
+            "error": "No comparison data found. Run compare_context_vs_baseline.py first.",
+            "available": False
+        }), 200
+
+    try:
+        avg_df  = pd.read_csv(context_binary_file)
+        imp_df  = pd.read_csv(improvement_file)
+
+        comparison = avg_df.to_dict(orient='records')
+        improvement = imp_df.to_dict(orient='records')
+
+        # Find best model overall
+        context_rows = avg_df[avg_df["Approach"] == "Context"]
+        best_row = context_rows.loc[context_rows["F1"].idxmax()] if not context_rows.empty else None
+
+        return jsonify({
+            "available":   True,
+            "comparison":  comparison,
+            "improvement": improvement,
+            "best_model":  best_row["Model"]     if best_row is not None else None,
+            "best_f1":     round(best_row["F1"], 3) if best_row is not None else None,
+        }), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e), "available": False}), 500
 
 # =========================
 # Run
