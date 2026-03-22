@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6">
+
+  <!-- Header -->
+  <div class="text-center">
+    <h2 class="text-3xl font-bold text-gray-900 dark:text-white">
+      📊 Calibration Analysis
+    </h2>
+    <p class="text-gray-600 dark:text-gray-400 mt-2">
+      Evaluate how well model confidence aligns with actual accuracy.
+    </p>
+  </div>
+
+  <!-- Cards -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+    <!-- ECE Card -->
+    <div class="glass-card p-6 rounded-2xl bg-white/70 dark:bg-slate-800/70 text-center">
+      <p class="text-sm text-gray-500 uppercase">ECE</p>
+      <p id="eceValue" class="text-3xl font-bold text-blue-500 mt-2">--</p>
+      <p class="text-xs text-gray-400 mt-1">Lower is better</p>
+    </div>
+
+    <!-- Avg Confidence -->
+    <div class="glass-card p-6 rounded-2xl bg-white/70 dark:bg-slate-800/70 text-center">
+      <p class="text-sm text-gray-500 uppercase">Avg Confidence</p>
+      <p id="avgConf" class="text-3xl font-bold text-purple-500 mt-2">--</p>
+    </div>
+
+    <!-- Accuracy -->
+    <div class="glass-card p-6 rounded-2xl bg-white/70 dark:bg-slate-800/70 text-center">
+      <p class="text-sm text-gray-500 uppercase">Accuracy</p>
+      <p id="accuracy" class="text-3xl font-bold text-green-500 mt-2">--</p>
+    </div>
+
+  </div>
+
+  <!-- Chart -->
+  <div class="glass-card p-6 rounded-2xl bg-white/70 dark:bg-slate-800/70">
+    <h3 class="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">
+      Reliability Diagram
+    </h3>
+    <canvas id="calibrationChart" height="100"></canvas>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+
+async function loadCalibration() {
+  const res = await fetch("/api/calibration");
+  const data = await res.json();
+
+  renderAll(data);
+}
+
+function renderAll(data){
+  const points = computeCalibration(data);
+
+  renderChart(points);
+  renderStats(data);
+}
+
+function computeCalibration(data) {
+
+  const bins = Array(10).fill().map(() => ({
+    total: 0,
+    correct: 0,
+    confidenceSum: 0
+  }));
+
+  data.forEach(d => {
+    const conf = d.confidence;
+    const idx = Math.min(Math.floor(conf / 10), 9);
+
+    bins[idx].total++;
+    bins[idx].correct += d.correct;
+    bins[idx].confidenceSum += conf;
+  });
+
+  return bins.map(b => {
+    if (b.total === 0) return null;
+
+    return {
+      x: b.confidenceSum / b.total,
+      y: (b.correct / b.total) * 100
+    };
+  }).filter(Boolean);
+}
+
+function renderChart(points){
+
+  const ctx = document.getElementById("calibrationChart");
+
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      datasets: [
+        {
+          label: 'Model Calibration',
+          data: points,
+          borderWidth: 2
+        },
+        {
+          label: 'Perfect Calibration',
+          data: [
+            {x: 0, y: 0},
+            {x: 100, y: 100}
+          ],
+          borderDash: [5,5]
+        }
+      ]
+    },
+    options: {
+      parsing: false,
+      scales: {
+        x: {
+          type: 'linear',
+          title: { display: true, text: 'Confidence (%)' }
+        },
+        y: {
+          title: { display: true, text: 'Accuracy (%)' }
+        }
+      }
+    }
+  });
+}
+
+function renderStats(data){
+
+  let total = data.length;
+  let correct = data.reduce((s,d)=>s+d.correct,0);
+  let avgConf = data.reduce((s,d)=>s+d.confidence,0)/total;
+
+  document.getElementById("accuracy").innerText = ((correct/total)*100).toFixed(1)+"%";
+  document.getElementById("avgConf").innerText = avgConf.toFixed(1)+"%";
+  document.getElementById("eceValue").innerText = computeECE(data).toFixed(3);
+}
+
+function computeECE(data){
+
+  let ece = 0;
+  let bins = 10;
+
+  for(let i=0;i<bins;i++){
+
+    const bin = data.filter(d => Math.floor(d.confidence/10)===i);
+
+    if(bin.length===0) continue;
+
+    let acc = bin.reduce((s,d)=>s+d.correct,0)/bin.length;
+    let conf = bin.reduce((s,d)=>s+d.confidence,0)/bin.length/100;
+
+    ece += (bin.length/data.length)*Math.abs(acc-conf);
+  }
+
+  return ece;
+}
+
+loadCalibration();
+
+</script>
+{% endblock %}

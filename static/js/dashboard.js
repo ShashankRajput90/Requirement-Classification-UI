@@ -62,6 +62,7 @@ async function classifyStory() {
       }),
     });
     const data = await response.json();
+    window.currentResultId = data.result_id;
     // if (response.status === 429) {
     //   alert(data.error); // Shows "Gemini API limit exceeded. Please check your quota..."
     //   return;
@@ -82,10 +83,16 @@ async function classifyStory() {
 
     document.getElementById("resCategory").textContent =
       data.category || "Functional Requirement";
+      highlightTaxonomy(data.category);
     document.getElementById("resModel").textContent = data.model;
     document.getElementById("resStrategy").textContent = data.strategy;
     document.getElementById("resLatency").textContent = `${data.latency}s`;
     document.getElementById("resReason").innerText = data.reason || "--";
+    const highlightBox = document.getElementById("highlightedStory");
+if (highlightBox) {
+  highlightBox.innerHTML =
+    data.highlighted_story || input.value;
+}
 
     // Step-by-Step Reasoning
     const stepByStepContainer = document.getElementById("resStepByStepContainer");
@@ -139,6 +146,11 @@ async function classifyStory() {
     if (resultArea) {
       resultArea.classList.remove("hidden");
       // Small delay to allow display:block to apply before opacity transition
+      const feedbackSection = document.getElementById("feedbackSection");
+  if (feedbackSection) {
+    feedbackSection.classList.remove("hidden");
+  }
+
       setTimeout(() => {
         resultArea.classList.remove("opacity-0");
         resultArea.classList.add("opacity-100");
@@ -168,6 +180,201 @@ function clearSingleClassification() {
   if (errorBanner) errorBanner.classList.add("hidden");
   if (loadingArea) loadingArea.classList.add("hidden");
 }
+document.addEventListener("mouseover", function (e) {
+
+  if (e.target.classList.contains("keyword-highlight")) {
+
+    const tooltip = document.getElementById("keywordTooltip");
+    const explanation = e.target.dataset.explanation;
+
+    tooltip.textContent = explanation;
+    tooltip.classList.remove("hidden");
+
+    document.addEventListener("mousemove", moveTooltip);
+
+    function moveTooltip(event) {
+      tooltip.style.top = event.pageY + 15 + "px";
+      tooltip.style.left = event.pageX + 15 + "px";
+    }
+
+    e.target.addEventListener("mouseleave", () => {
+      tooltip.classList.add("hidden");
+      document.removeEventListener("mousemove", moveTooltip);
+    });
+  }
+
+});
+// =========================
+// TAXONOMY CATEGORY HIGHLIGHT
+// =========================
+
+function highlightTaxonomy(category){
+
+  // remove old highlights
+  document.querySelectorAll(".taxonomy-item")
+    .forEach(el => el.classList.remove("taxonomy-active"));
+
+  if(!category) return;
+
+  const cleanCategory = category.toLowerCase().trim();
+const id = "taxonomy-" + cleanCategory;
+  const item = document.getElementById(id);
+
+  if(item){
+    item.classList.add("taxonomy-active");
+
+    // 👇 NEW: scroll into view
+    item.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  // 👇 NEW: open panel automatically
+  const panel = document.getElementById("taxonomyPanel");
+if(panel && panel.classList.contains("translate-x-full")){
+  panel.classList.remove("translate-x-full");
+}
+
+  // 👇 NEW: populate Q&A
+  if(category && category !== "--"){
+    
+
+    // Auto ask when classification happens
+  const input = document.getElementById("nfrQuestion");
+
+if (input) {
+  const hasStory = document.getElementById("storyInput");
+
+  if (hasStory) {
+    // Dashboard page
+    input.value = `Why is this requirement classified as ${category}? Explain with reasoning.`;
+  } else {
+    // Home page
+    input.value = `Explain ${category} in simple terms with examples.`;
+  }
+
+  answerQuestion();
+}
+  }
+}
+async function answerQuestion() {
+
+  const questionInput = document.getElementById("nfrQuestion");
+  const answerDiv = document.getElementById("nfrAnswer");
+
+  const question = questionInput.value.trim();
+  if(!question) return;
+
+  answerDiv.innerHTML = `
+  <div class="flex items-center gap-2 text-gray-400">
+    <div class="w-3 h-3 bg-blue-500 rounded-full animate-bounce"></div>
+    <div class="w-3 h-3 bg-blue-500 rounded-full animate-bounce delay-100"></div>
+    <div class="w-3 h-3 bg-blue-500 rounded-full animate-bounce delay-200"></div>
+    <span>Thinking...</span>
+  </div>
+`;
+
+  // get current context
+  const categoryEl = document.getElementById("resCategory");
+const storyEl = document.getElementById("storyInput");
+
+const category = categoryEl ? categoryEl.innerText.trim() : "";
+const story = storyEl ? storyEl.value : "";
+// ✅ CREATE PAYLOAD FIRST
+let payload = {
+  question: question
+};
+
+if (category) payload.category = category;
+if (story) payload.story = story;
+
+  try {
+    const response = await fetch("/ask-nfr", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await response.json();
+
+    answerDiv.innerHTML = `
+  <div class="bg-white dark:bg-slate-800 p-3 rounded-lg border border-gray-200 dark:border-slate-700 shadow-sm">
+    ${data.answer}
+  </div>
+`;
+
+  } catch (err) {
+    answerDiv.innerHTML = "⚠️ Error getting answer.";
+  }
+}
+function toggleTaxonomyPanel(){
+
+  const panel = document.getElementById("taxonomyPanel");
+
+  if(panel.classList.contains("translate-x-full")){
+      panel.classList.remove("translate-x-full");
+
+      setTimeout(() => {
+        const input = document.getElementById("nfrQuestion");
+        if(input) input.focus();
+      }, 300);
+
+  }else{
+      panel.classList.add("translate-x-full");
+  }
+
+}
+function showSuggestions(value) {
+  const box = document.getElementById("nfrSuggestions");
+  const category = document.getElementById("resCategory")?.innerText || "";
+
+  if (!box) return;
+
+  const input = value.toLowerCase().trim();
+
+  // Base suggestions
+  let suggestions = [
+    `Why is this requirement classified as ${category}?`,
+    `How can this ${category} requirement be improved?`,
+    `What are examples of ${category}?`,
+    `What metrics define ${category}?`,
+    `Explain ${category} in simple terms`
+  ];
+
+  // Extra smart suggestions based on keywords
+  if (input.includes("why")) {
+    suggestions.unshift(`Why is this classified as ${category}?`);
+  }
+  if (input.includes("how")) {
+    suggestions.unshift(`How to improve ${category}?`);
+  }
+  if (input.includes("example")) {
+    suggestions.unshift(`Give real-world examples of ${category}`);
+  }
+
+  // Filter suggestions
+  const filtered = suggestions.filter(s =>
+    s.toLowerCase().includes(input)
+  );
+
+  // Render suggestions
+  box.innerHTML = filtered.slice(0, 5).map(s => `
+    <div class="cursor-pointer px-2 py-1 rounded hover:bg-blue-100 dark:hover:bg-blue-900"
+         onclick="selectSuggestion('${s.replace(/'/g, "\\'")}')">
+      ${s}
+    </div>
+  `).join("");
+}
+function selectSuggestion(text) {
+  const input = document.getElementById("nfrQuestion");
+  const box = document.getElementById("nfrSuggestions");
+
+  if (input) input.value = text;
+  if (box) box.innerHTML = "";
+
+  // 🔥 Trigger answer automatically
+  answerQuestion();
+}
 
 // --- File Upload Logic ---
 // Wrapped in DOMContentLoaded so DOM elements are guaranteed to exist.
@@ -179,7 +386,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const uploadedFilename= document.getElementById("uploadedFilename");
   const removeBtn       = document.getElementById("removeBtn");
   const previewBtn      = document.getElementById("previewBtn");
-
+  const input = document.getElementById("nfrQuestion");
+if(input){
+  input.addEventListener("keypress", function(e){
+    if(e.key === "Enter"){
+      answerQuestion();
+    }
+  });
+}
   if (dropZone && fileInput) {
     // Only trigger file picker if clicking on dropZone BUT NOT if clicking actions
     dropZone.addEventListener("click", (e) => {
@@ -1152,3 +1366,81 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 });
+// =========================
+// REAL-TIME FEEDBACK SYSTEM
+// =========================
+
+function showCorrectionBox() {
+  const box = document.getElementById("correctionBox");
+  if (box) box.classList.remove("hidden");
+}
+
+async function sendFeedback(isCorrect) {
+
+  if (!window.currentResultId) {
+    alert("No result available.");
+    return;
+  }
+
+  let correctedLabel = null;
+
+if (!isCorrect) {
+  correctedLabel = document.getElementById("correctLabel")?.value;
+
+  if (!correctedLabel) {
+    alert("Please select the correct label.");
+    return;
+  }
+}
+
+  try {
+    const response = await fetch("/api/feedback", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        result_id: window.currentResultId,
+        is_correct: isCorrect,
+        corrected_label: isCorrect ? null : correctedLabel,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      alert(data.error || "Feedback failed");
+      return;
+    }
+
+    // ✅ Success UI
+    alert("✅ Feedback saved!");
+
+    // Optional: auto reclassify if corrected
+    if (!isCorrect && data.updated_result) {
+      updateResultUI(data.updated_result);
+    }
+
+  } catch (err) {
+    console.error(err);
+    alert("❌ Network error while sending feedback");
+  }
+}
+function updateResultUI(data) {
+
+  const badge = document.getElementById("resBadge");
+
+  if (badge) {
+    badge.textContent = data.classification;
+    badge.className = `text-2xl font-bold px-4 py-2 rounded-lg border ${
+      data.classification === "FR" ? "badge-fr" : "badge-nfr"
+    }`;
+  }
+
+  document.getElementById("resCategory").textContent =
+    data.category || "-";
+
+  document.getElementById("resReason").innerText =
+    data.reason || "--";
+
+}
