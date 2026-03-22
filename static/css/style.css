@@ -100,7 +100,27 @@ body {
 .dark ::-webkit-scrollbar-thumb:hover {
     background: #475569;
 }
-
+.keyword-highlight {
+  background-color: #fde047;
+  color: #000;
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+.keyword-highlight {
+  background-color: #facc15;
+  color: #000;
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor:pointer;
+  transition: all 0.3s ease;
+}
+.keyword-highlight:hover {
+  background-color: #fbbf24;
+  color: #000;
+  transform: scale(1.05);
+}
 /* Animations */
 .fade-in {
     animation: fadeIn 0.5s ease-out forwards;
@@ -141,4 +161,14 @@ body {
     background-color: rgba(239, 68, 68, 0.2);
     color: #f87171;
     border: 1px solid rgba(239, 68, 68, 0.3);
+}
+.taxonomy-active{
+  border:2px solid #3b82f6;
+  background:#eff6ff;
+  border-radius:8px;
+  padding:6px;
+}
+
+.dark .taxonomy-active{
+  background:#1e3a8a33;
 }
