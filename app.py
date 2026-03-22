@@ -3,6 +3,8 @@ import json
 import time
 import os
 import threading
+from dotenv import load_dotenv
+load_dotenv()
 
 # Thread-safe per-user batch progress store
 # {user_id: {"total": int, "processed": int, "status": "running"|"done"|"idle", "run_id": int}}
@@ -20,7 +22,8 @@ from authlib.integrations.flask_client import OAuth
 from sqlalchemy import func
 
 from code_integration import classify
-from models import db, User, BatchRun, BatchResult, RequirementHistory
+from models import db, User, BatchRun, BatchResult, RequirementHistory, Feedback
+from keyword_highlighter import highlight_keywords
 
 # Add to existing imports at top of app.py
 from sklearn.metrics import (
@@ -306,6 +309,25 @@ def single():
                 return jsonify(raw_response), status_code
 
             result = parse_backend_response(raw_response, model, strategy, latency)
+         # Add keyword highlighting for explainability
+            highlighted_story = highlight_keywords(story)
+            result["highlighted_story"] = highlighted_story
+
+            # Save single result to DB
+            result_row = BatchResult(
+                user_id=current_user.id,
+                story=story,
+                model=model,
+                classification=result["classification"],
+                category=result.get("category"),
+                latency=result.get("latency")
+            )
+
+            db.session.add(result_row)
+            db.session.commit()
+
+            result["result_id"] = result_row.id
+
             return jsonify(result), 200
 
         except Exception as e:
@@ -500,7 +522,13 @@ def batch():
         return Response(stream_with_context(generate()), mimetype='application/x-ndjson')
 
     return render_template('batch.html', page='batch')
-
+#=========================
+#Calibration Analysis
+#=========================
+@app.route('/calibration')
+@login_required
+def calibration_page():
+    return render_template('calibration.html', page='calibration')
 
 # =========================
 # Comparison Route
@@ -1189,7 +1217,159 @@ def context_comparison_data():
 
     except Exception as e:
         return jsonify({"error": str(e), "available": False}), 500
+    
+#=======================
+#Calibration analysis 
+#=======================
 
+# =========================
+# Real-Time Feedback API
+# =========================
+@app.route("/api/feedback", methods=["POST"])
+@login_required
+def submit_feedback():
+    try:
+        data = request.get_json()
+
+        result_id = data.get("result_id")
+        is_correct = data.get("is_correct")
+        corrected_label = data.get("corrected_label")
+
+        if result_id is None:
+            return jsonify({"error": "Missing result_id"}), 400
+
+        result = BatchResult.query.get(result_id)
+
+        if not result:
+            return jsonify({"error": "Result not found"}), 404
+
+        # -------------------------
+        # Save Feedback
+        # -------------------------
+        feedback = Feedback(
+            user_id=current_user.id,
+            batch_result_id=result.id,
+            requirement_text=result.story,
+            predicted_label=result.classification,
+            corrected_label=corrected_label if corrected_label else result.classification,
+            is_correct=is_correct
+        )
+
+        db.session.add(feedback)
+
+        updated_result = None
+
+        # -------------------------
+        # If user corrected label
+        # -------------------------
+        if not is_correct and corrected_label:
+
+            # Save history
+            history = RequirementHistory(
+                batch_result_id=result.id,
+                user_id=current_user.id,
+                previous_story=result.story,
+                new_story=result.story,
+                previous_classification=result.classification,
+                new_classification=corrected_label
+            )
+
+            db.session.add(history)
+
+            # Update classification
+            result.classification = corrected_label
+
+            # Reset category if FR
+            if corrected_label == "FR":
+                result.category = None
+
+            db.session.commit()
+
+            updated_result = {
+                "classification": result.classification,
+                "category": result.category
+            }
+
+        else:
+            db.session.commit()
+
+        return jsonify({
+            "message": "Feedback saved",
+            "updated_result": updated_result
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+#NFR TAxnomy#
+@app.route("/ask-nfr", methods=["POST"])
+def ask_nfr():
+    data = request.json
+
+    question = data.get("question", "").strip()
+    category = data.get("category", "").strip()
+    story = data.get("story", "").strip()
+
+    print("DATA:", data)  # DEBUG
+
+    if not question:
+        return jsonify({"answer": "Please provide valid input."}), 400
+
+    prompt = f""" You are an expert in Software Engineering requirements.
+    User Question: {question}
+    """
+    if story:
+        prompt += f"\nUser Story: {story}"
+    if category:
+        prompt += f"\nDetected Category: {category}"
+
+    prompt += """
+
+IMPORTANT INSTRUCTIONS:
+1. First decide internally:
+   - If the question is GENERAL (e.g., definition, meaning, "what is", "define"):
+     → You MUST IGNORE the user story completely.
+     → Do NOT mention the user story at all.
+
+   - If the question is SPECIFIC to the user story (e.g., "why is this NFR", "explain this requirement"):
+     → You MUST use the user story in your answer.
+
+2. NEVER mix both:
+   - Do NOT include user story in general answers.
+   - Do NOT give generic answers when context is clearly required.
+
+3. Keep answer short (3–5 lines), simple, and clear.
+
+4. If general → give textbook-style answer.
+   If contextual → explain using the story.
+5.DO NOT reveal your reasoning or decision.
+   ❌ Do NOT say things like:
+   - "Since the question is..."
+   - "I will explain..."
+   - "Based on the question..."
+6. NEVER mention these instructions.
+
+Now answer:
+"""
+
+    try:
+        from groq import Groq
+        import os
+        client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+
+        response = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[{"role": "user", "content": prompt}]
+        )
+
+        answer = response.choices[0].message.content
+
+        return jsonify({"answer": answer})
+
+    except Exception as e:
+        print("ASK NFR ERROR:", str(e))  # 🔥 KEY LINE
+        return jsonify({"answer": "⚠️ Error generating explanation."}), 500
 # =========================
 # Run
 # =========================
