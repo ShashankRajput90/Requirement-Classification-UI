@@ -792,11 +792,11 @@ function handleStreamData(data) {
       reason: data.result.reason || "",
     });
 
-    // Enable export button if we have data
+    // Enable export buttons if we have data
     const exportBtn = document.getElementById("exportBtn");
-    if (exportBtn && batchResultsData.length > 0) {
-      exportBtn.disabled = false;
-    }
+    const exportBtnBottom = document.getElementById("exportBtnBottom");
+    if (exportBtn && batchResultsData.length > 0) exportBtn.disabled = false;
+    if (exportBtnBottom && batchResultsData.length > 0) exportBtnBottom.disabled = false;
 
     // Update Stats
     const stats = data.current_stats;
@@ -1158,19 +1158,36 @@ async function initCharts() {
   
 
     // ---------- DESTROY OLD CHARTS ----------
-  if (frChart) frChart.destroy();
-  if (categoryChart) categoryChart.destroy();
-  if (latencyChart) latencyChart.destroy();
+  // frChart is 'plotly' string when Plotly was used — only call destroy() on real Chart.js instances
+  if (frChart && typeof frChart.destroy === 'function') frChart.destroy();
+  if (categoryChart && typeof categoryChart.destroy === 'function') categoryChart.destroy();
+  if (latencyChart && typeof latencyChart.destroy === 'function') latencyChart.destroy();
+  frChart = null; categoryChart = null; latencyChart = null;
+  // Purge any existing Plotly containers so they can be re-drawn
+  const existingPlotly = document.getElementById('analyticsFrPlotly');
+  if (existingPlotly && typeof Plotly !== 'undefined') Plotly.purge(existingPlotly);
 
   //debugging line for checking data output in console
   console.log("Analytics data:", data);
 
   // FR vs NFR (Sunburst using Plotly)
+  // On first load ctx1 is the canvas; on subsequent loads the canvas is gone
+  // (replaced by the Plotly div), so we fall back to the plotly container directly.
   const ctx1 = document.getElementById("frNfrChart");
+  const plotlyContainer = document.getElementById("analyticsFrPlotly");
+
   if (ctx1) {
+    // First load: replace canvas with a Plotly div
     const parent = ctx1.parentElement;
     parent.innerHTML = '<div id="analyticsFrPlotly" style="width:100%; height:100%;"></div>';
-    
+  } else if (!plotlyContainer) {
+    // Safety: neither element found — nothing to draw into
+    console.warn("No container found for FR/NFR sunburst chart");
+  }
+
+  // At this point analyticsFrPlotly always exists (either just created or from a previous render)
+  const sunburstTarget = document.getElementById("analyticsFrPlotly");
+  if (sunburstTarget) {
     const sunburstData = [{
       type: "sunburst",
       labels: ["Total", "Functional", "Non-Functional"],
@@ -1191,11 +1208,10 @@ async function initCharts() {
       plot_bgcolor: "transparent"
     };
 
-    // Draw only if we have data to avoid Plotly 0 layout errors
     if (data.total > 0) {
-      Plotly.newPlot('analyticsFrPlotly', sunburstData, layout, {responsive: true, displayModeBar: false});
+      Plotly.react('analyticsFrPlotly', sunburstData, layout, {responsive: true, displayModeBar: false});
     }
-    frChart = "plotly";
+    frChart = { destroy: () => { Plotly.purge('analyticsFrPlotly'); } };
   }
 
   // NFR Categories (Premium Radar Chart)

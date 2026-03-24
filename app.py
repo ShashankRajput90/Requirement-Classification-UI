@@ -454,19 +454,25 @@ def batch():
                         res = parse_backend_response(raw_response, model, strategy, latency)
                         batch_results_storage.append(res)
 
-                        # ORM insert for batch result
-                        result_row = BatchResult(
-                            batch_run_id=batch_run_id,
-                            user_id=user_id,
-                            story=story,
-                            model=model,
-                            classification=res["classification"],
-                            category=res.get("category"),
-                            latency=res.get("latency")
-                        )
-                        db.session.add(result_row)
-                        db.session.commit()
-                        res["id"] = result_row.id  # expose DB id to the stream
+                        # ORM insert for batch result — isolated try/except so a
+                        # DB error (e.g. sequence mismatch) doesn't kill the session
+                        try:
+                            result_row = BatchResult(
+                                batch_run_id=batch_run_id,
+                                user_id=user_id,
+                                story=story,
+                                model=model,
+                                classification=res["classification"],
+                                category=res.get("category"),
+                                latency=res.get("latency")
+                            )
+                            db.session.add(result_row)
+                            db.session.commit()
+                            res["id"] = result_row.id  # expose DB id to the stream
+                        except Exception as db_err:
+                            db.session.rollback()  # prevents poisoned session
+                            print(f"[WARN] BatchResult DB insert failed (story skipped in DB): {db_err}")
+                            # Classification result is still yielded to the frontend
 
                 except Exception as e:
                     res = {"classification": "Error", "category": None, "latency": 0.0, "error": str(e)}
@@ -987,6 +993,45 @@ def get_all_requirements():
     })
 
 
+@app.route('/api/requirements/edited')
+@login_required
+def get_edited_requirements():
+    """Return all BatchResults that have at least one RequirementHistory entry."""
+    from models import RequirementHistory as RH
+
+    # Subquery: only IDs that appear in requirement_history
+    edited_ids = (
+        db.session.query(RH.batch_result_id)
+        .group_by(RH.batch_result_id)
+        .subquery()
+    )
+
+    results = (
+        db.session.query(BatchResult)
+        .join(edited_ids, BatchResult.id == edited_ids.c.batch_result_id)
+        .order_by(BatchResult.id.desc())
+        .all()
+    )
+
+    data = []
+    for r in results:
+        edit_count = db.session.query(func.count(RH.id)).filter(RH.batch_result_id == r.id).scalar() or 0
+        run_ts = None
+        if r.run and r.run.created_at:
+            run_ts = r.run.created_at.strftime("%b %d, %Y %I:%M %p")
+        data.append({
+            "id":             r.id,
+            "story":          r.story,
+            "model":          r.model,
+            "classification": r.classification,
+            "category":       r.category,
+            "edit_count":     edit_count,
+            "classified_at":  run_ts,
+        })
+
+    return jsonify(data)
+
+
 # =========================
 # Requirement Version Control
 # =========================
@@ -1370,6 +1415,46 @@ Now answer:
     except Exception as e:
         print("ASK NFR ERROR:", str(e))  # 🔥 KEY LINE
         return jsonify({"answer": "⚠️ Error generating explanation."}), 500
+# =========================
+# Batch: prepare from History edits
+# =========================
+@app.route('/api/batch/prepare', methods=['POST'])
+@login_required
+def batch_prepare():
+    """Receive edited stories from the history page, save as temp CSV, stash in session."""
+    import csv as _csv
+    data    = request.get_json() or {}
+    stories = data.get('stories', [])   # list of {id, story} dicts
+
+    if not stories:
+        return jsonify({'error': 'No stories provided.'}), 400
+
+    os.makedirs('batches', exist_ok=True)
+    filename = f"_history_edited_u{current_user.id}.csv"
+    filepath = os.path.join('batches', filename)
+
+    with open(filepath, 'w', newline='', encoding='utf-8') as f:
+        writer = _csv.writer(f)
+        writer.writerow(['story'])
+        for s in stories:
+            writer.writerow([str(s.get('story', '')).strip()])
+
+    session['_history_batch_file'] = filename
+    session['_history_batch_count'] = len(stories)
+    return jsonify({'success': True, 'redirect': '/batch', 'count': len(stories)})
+
+
+@app.route('/api/batch/pending')
+@login_required
+def batch_pending():
+    """Return and clear any pending pre-loaded batch file from the history page."""
+    filename = session.pop('_history_batch_file', None)
+    count    = session.pop('_history_batch_count', 0)
+    if filename and os.path.exists(os.path.join('batches', filename)):
+        return jsonify({'pending': True, 'filename': filename, 'count': count})
+    return jsonify({'pending': False})
+
+
 # =========================
 # Run
 # =========================
