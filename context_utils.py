@@ -199,6 +199,26 @@ def extract_reason(response: str) -> str:
         return match.group(1).strip()
     return "No reason provided"
 
+def extract_confidence(response: str) -> int:
+    """
+    Extracts a confidence score (0-100) from any LLM response format.
+    Handles both baseline format ('4. Confidence: 85') and
+    context format where confidence may appear inline or be absent.
+    Falls back to 70 (neutral-high) when not found.
+    """
+    if not response:
+        return 70
+    # Match 'Confidence: <number>' pattern (with optional leading '4.')
+    match = re.search(r"(?:4\.)?\s*Confidence\s*[:\-]\s*([0-9]{1,3})", response, re.IGNORECASE)
+    if match:
+        val = int(match.group(1))
+        return min(100, max(0, val))
+    # Fallback: find any standalone 2-3 digit number between 50-100 at end of line
+    match = re.search(r"\b([5-9][0-9]|100)\b\s*$", response, re.IGNORECASE | re.MULTILINE)
+    if match:
+        return int(match.group(1))
+    return 70
+
 def extract_rqi_score(response: str):
     """Extracts numeric RQI score (0–10) from LLM response"""
     text  = str(response)
