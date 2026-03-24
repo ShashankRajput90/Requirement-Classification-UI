@@ -33,6 +33,7 @@ from context_utils import (
     extract_is_nfr,
     extract_nfr_type,
     extract_reason,
+    extract_confidence,
     calculate_combined_rqi,
     get_rqi_criteria_breakdown
 )
@@ -1163,6 +1164,274 @@ def context_comparison_data():
 
     except Exception as e:
         return jsonify({"error": str(e), "available": False}), 500
+
+# =========================
+# Compare Live: Baseline vs Context
+# =========================
+@app.route('/compare-live', methods=['GET'])
+@login_required
+def compare_live():
+    return render_template('compare_live.html',
+                           page='compare_live',
+                           domains=DOMAIN_LIST)
+
+
+@app.route('/api/compare-live', methods=['POST'])
+@login_required
+def run_compare_live():
+    """
+    Runs the SAME story through both pipelines:
+      - Baseline: standard classify() with chosen technique/model
+      - Context:  domain-enriched create_context_prompt() pipeline
+    Confidence is extracted for BOTH sides using extract_confidence().
+    """
+    if not request.is_json:
+        return jsonify({"error": "Request must be JSON"}), 400
+
+    data     = request.json
+    story    = data.get('story', '').strip()
+    domain   = data.get('domain', 'Software Application')
+    model    = data.get('model', 'ChatGPT')
+    strategy = data.get('strategy', 'Zero-shot')
+
+    if not story:
+        return jsonify({"error": "Story is required"}), 400
+    if len(story) > 2000:
+        return jsonify({"error": "Story too long (max 2000 chars)"}), 400
+
+    model_map = {
+        "ChatGPT": "groq_gpt", "Gemini": "gemini", "Claude": "claude",
+        "Groq": "groq_llama3", "Cohere": "cohere", "Mistral": "mistral"
+    }
+    strategy_map = {
+        "Zero-shot": "zero_shot", "Few-shot": "few_shot",
+        "Chain-of-Thought": "chain_of_thought", "Role-Based": "role_based", "ReAct": "react"
+    }
+    backend_model = model_map.get(model, "groq_gpt")
+    technique     = strategy_map.get(strategy, "zero_shot")
+
+    results = {}
+
+    # ── BASELINE ────────────────────────────────────────────
+    try:
+        t0 = time.time()
+        raw_b, code_b = classify(backend_model, story, technique)
+        latency_b = round(time.time() - t0, 2)
+
+        if code_b != 200:
+            results["baseline"] = {"error": str(raw_b), "latency": latency_b}
+        else:
+            parsed_b = parse_backend_response(raw_b, model, strategy, latency_b)
+            rqi_b    = calculate_combined_rqi(story)
+            results["baseline"] = {
+                "classification": parsed_b.get("classification", "FR"),
+                "category":       parsed_b.get("category") or "N/A",
+                "reason":         parsed_b.get("reason", ""),
+                "confidence":     parsed_b.get("confidence", 0),  # parse_backend_response already extracts this
+                "latency":        latency_b,
+                "rqi":            rqi_b,
+                "raw":            raw_b,
+            }
+    except Exception as e:
+        results["baseline"] = {"error": str(e), "latency": 0}
+
+    # ── CONTEXT ─────────────────────────────────────────────
+    try:
+        domain_info    = DOMAIN_CONTEXTS.get(domain, DOMAIN_CONTEXTS["Software Application"])
+        system_context = create_system_context(
+            domain, domain_info["stakeholders"], domain_info["system"]
+        )
+        ctx_prompt = create_context_prompt(
+            previous_context="None",
+            current_req=story,
+            next_context="None",
+            technique=technique,
+            system_context=system_context
+        )
+
+        t0 = time.time()
+        raw_c, code_c = classify(backend_model, ctx_prompt, technique)
+        latency_c = round(time.time() - t0, 2)
+
+        if code_c != 200:
+            results["context"] = {"error": str(raw_c), "latency": latency_c}
+        else:
+            is_nfr_c   = extract_is_nfr(raw_c)
+            nfr_type_c = extract_nfr_type(raw_c)
+            reason_c   = extract_reason(raw_c)
+            # ← KEY FIX: extract confidence from context response properly
+            confidence_c = extract_confidence(raw_c)
+            classif_c  = "NFR" if is_nfr_c == "Yes" else "FR"
+            rqi_c      = calculate_combined_rqi(story)
+            results["context"] = {
+                "classification": classif_c,
+                "category":       nfr_type_c if classif_c == "NFR" else "N/A",
+                "reason":         reason_c,
+                "confidence":     confidence_c,  # ← was hardcoded 0 before
+                "latency":        latency_c,
+                "rqi":            rqi_c,
+                "raw":            raw_c,
+                "domain":         domain,
+            }
+    except Exception as e:
+        results["context"] = {"error": str(e), "latency": 0}
+
+    return jsonify({
+        "model":    model,
+        "strategy": strategy,
+        "story":    story,
+        "baseline": results.get("baseline", {}),
+        "context":  results.get("context",  {}),
+    }), 200
+
+
+@app.route('/api/compare-live-batch', methods=['POST'])
+@login_required
+def run_compare_live_batch():
+    """
+    CSV batch comparison: each story runs through baseline + context.
+    Returns per-row results and aggregated metrics.
+    """
+    if 'file' not in request.files or request.files['file'].filename == '':
+        return jsonify({"error": "No file uploaded"}), 400
+
+    file     = request.files['file']
+    model    = request.form.get('model', 'ChatGPT')
+    strategy = request.form.get('strategy', 'Zero-shot')
+    domain   = request.form.get('domain', 'Software Application')
+
+    model_map = {
+        "ChatGPT": "groq_gpt", "Gemini": "gemini", "Claude": "claude",
+        "Groq": "groq_llama3", "Cohere": "cohere", "Mistral": "mistral"
+    }
+    strategy_map = {
+        "Zero-shot": "zero_shot", "Few-shot": "few_shot",
+        "Chain-of-Thought": "chain_of_thought", "Role-Based": "role_based", "ReAct": "react"
+    }
+    backend_model = model_map.get(model, "groq_gpt")
+    technique     = strategy_map.get(strategy, "zero_shot")
+
+    try:
+        df = pd.read_csv(file)
+    except Exception as e:
+        return jsonify({"error": f"Could not read CSV: {e}"}), 400
+
+    story_col = next((c for c in ['story', 'user_story', 'text', 'requirement'] if c in df.columns), None)
+    label_col = next((c for c in ['label', 'is_nfr', 'type', 'Label'] if c in df.columns), None)
+
+    if not story_col:
+        return jsonify({"error": "CSV must have a story/user_story/requirement column"}), 400
+
+    df = df.rename(columns={story_col: 'story'}).dropna(subset=['story']).head(30)
+
+    def norm_label(v):
+        v = str(v).strip().lower()
+        return 'NFR' if v in ['yes', 'nfr', '1', 'non-functional'] else 'FR'
+
+    has_labels = label_col is not None
+    if has_labels:
+        df['true_label'] = df[label_col].apply(norm_label)
+
+    domain_info    = DOMAIN_CONTEXTS.get(domain, DOMAIN_CONTEXTS["Software Application"])
+    system_context = create_system_context(domain, domain_info["stakeholders"], domain_info["system"])
+
+    rows = []
+    base_true, base_pred, ctx_true, ctx_pred = [], [], [], []
+
+    for _, row in df.iterrows():
+        story      = str(row['story']).strip()
+        true_label = row.get('true_label', None) if has_labels else None
+
+        # Baseline
+        try:
+            raw_b, code_b = classify(backend_model, story, technique)
+            if code_b == 200:
+                p       = parse_backend_response(raw_b, model, strategy)
+                b_class = p.get('classification', 'FR')
+                b_cat   = p.get('category') or 'N/A'
+                b_reason= p.get('reason', '')
+                b_conf  = p.get('confidence', 0)
+            else:
+                b_class, b_cat, b_reason, b_conf = 'Error', '', '', 0
+        except Exception as e:
+            b_class, b_cat, b_reason, b_conf = 'Error', '', str(e), 0
+
+        # Context
+        try:
+            ctx_prompt = create_context_prompt("None", story, "None", technique, system_context)
+            raw_c, code_c = classify(backend_model, ctx_prompt, technique)
+            if code_c == 200:
+                c_class  = "NFR" if extract_is_nfr(raw_c) == "Yes" else "FR"
+                c_cat    = extract_nfr_type(raw_c) if c_class == "NFR" else "N/A"
+                c_reason = extract_reason(raw_c)
+                c_conf   = extract_confidence(raw_c)   # ← fixed
+            else:
+                c_class, c_cat, c_reason, c_conf = 'Error', '', '', 0
+        except Exception as e:
+            c_class, c_cat, c_reason, c_conf = 'Error', '', str(e), 0
+
+        rqi = calculate_combined_rqi(story)
+
+        entry = {
+            "story":           story[:120],
+            "true_label":      true_label,
+            "baseline_class":  b_class,
+            "baseline_cat":    b_cat,
+            "baseline_reason": b_reason,
+            "baseline_conf":   b_conf,
+            "context_class":   c_class,
+            "context_cat":     c_cat,
+            "context_reason":  c_reason,
+            "context_conf":    c_conf,
+            "rqi":             rqi.get('final_score', 0),
+            "agree":           b_class == c_class,
+        }
+        if has_labels and true_label:
+            entry["base_correct"] = (b_class == true_label)
+            entry["ctx_correct"]  = (c_class == true_label)
+            if b_class != 'Error':
+                base_true.append(true_label); base_pred.append(b_class)
+            if c_class != 'Error':
+                ctx_true.append(true_label);  ctx_pred.append(c_class)
+
+        rows.append(entry)
+
+    def safe_metrics(yt, yp):
+        if len(yt) < 2:
+            return {"accuracy": None, "precision": None, "recall": None, "f1": None}
+        return {
+            "accuracy":  round(accuracy_score(yt, yp) * 100, 1),
+            "precision": round(precision_score(yt, yp, pos_label='NFR', zero_division=0) * 100, 1),
+            "recall":    round(recall_score(yt, yp, pos_label='NFR', zero_division=0) * 100, 1),
+            "f1":        round(f1_score(yt, yp, pos_label='NFR', zero_division=0) * 100, 1),
+        }
+
+    agreement_rate = round(sum(1 for r in rows if r['agree']) / len(rows) * 100, 1) if rows else 0
+
+    # NFR distribution counts
+    base_nfr_count = sum(1 for r in rows if r['baseline_class'] == 'NFR')
+    ctx_nfr_count  = sum(1 for r in rows if r['context_class']  == 'NFR')
+    base_fr_count  = sum(1 for r in rows if r['baseline_class'] == 'FR')
+    ctx_fr_count   = sum(1 for r in rows if r['context_class']  == 'FR')
+
+    return jsonify({
+        "rows":             rows,
+        "total":            len(rows),
+        "agreement_rate":   agreement_rate,
+        "baseline_metrics": safe_metrics(base_true, base_pred) if has_labels else None,
+        "context_metrics":  safe_metrics(ctx_true,  ctx_pred)  if has_labels else None,
+        "has_labels":       has_labels,
+        "model":            model,
+        "strategy":         strategy,
+        "domain":           domain,
+        "distribution": {
+            "baseline_nfr": base_nfr_count,
+            "baseline_fr":  base_fr_count,
+            "context_nfr":  ctx_nfr_count,
+            "context_fr":   ctx_fr_count,
+        }
+    }), 200
+
 
 # =========================
 # Run
