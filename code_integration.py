@@ -15,6 +15,7 @@ GROQ_API_KEY   = os.getenv("GROQ_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 COHERE_API_KEY = os.getenv("COHERE_API_KEY")
 CLAUDE_API_KEY = os.getenv("CLAUDE_API_KEY")
+MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY")
 
 # =========================
 # Startup Validation
@@ -25,6 +26,8 @@ _KEY_MAP = {
     "GEMINI_API_KEY": GEMINI_API_KEY,
     "COHERE_API_KEY": COHERE_API_KEY,
     "CLAUDE_API_KEY": CLAUDE_API_KEY,
+    "MISTRAL_API_KEY": MISTRAL_API_KEY,
+    
 }
 for _name, _val in _KEY_MAP.items():
     if not _val:
