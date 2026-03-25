@@ -587,19 +587,7 @@ def batch():
                                     "latency": res.get("latency", 0),
                                     "error": res["error"]
                                     }
-                    start_t = time.time()
-                    raw_response, status_code = classify(backend_model, story, technique)
-                    latency = round(time.time() - start_t, 2)
-
-                    if status_code != 200:
-                        res = {"classification": "Error", "category": None, "latency": latency, "error": raw_response}
-                    else:
-                        res = parse_backend_response(raw_response, model, strategy, latency)
-                        batch_results_storage.append(res)
-
-                        # ORM insert for batch result — isolated try/except so a
-                        # DB error (e.g. sequence mismatch) doesn't kill the session
-                        try:
+                                    
                             result_row = BatchResult(
                                 batch_run_id=batch_run_id,
                                 user_id=user_id,
@@ -722,51 +710,6 @@ def batch():
             # =========================
             # # FINAL SUMMARY
             # # =========================
-                                latency=res.get("latency")
-                            )
-                            db.session.add(result_row)
-                            db.session.commit()
-                            res["id"] = result_row.id  # expose DB id to the stream
-                        except Exception as db_err:
-                            db.session.rollback()  # prevents poisoned session
-                            print(f"[WARN] BatchResult DB insert failed (story skipped in DB): {db_err}")
-                            # Classification result is still yielded to the frontend
-
-                except Exception as e:
-                    res = {"classification": "Error", "category": None, "latency": 0.0, "error": str(e)}
-
-                if res.get("classification") == "FR":
-                    fr_count += 1
-                elif res.get("classification") == "NFR":
-                    nfr_count += 1
-                    cat = res.get("category")
-                    if cat:
-                        for c in CATEGORIES:
-                            if c.lower() in cat.lower():
-                                category_counts[c] += 1
-                                break
-
-                total_time += res.get("latency", 0)
-                processed += 1
-
-                # Update global progress store
-                with _batch_progress_lock:
-                    if user_id in _batch_progress:
-                        _batch_progress[user_id]["processed"] = processed
-
-                yield json.dumps({
-                    "type": "result",
-                    "story": story,
-                    "result": res,
-                    "current_stats": {
-                        "total": processed,
-                        "fr_count": fr_count,
-                        "nfr_count": nfr_count,
-                        "avg_time": round(total_time / processed, 2),
-                        "category_counts": category_counts
-                    }
-                }) + "\n"
-
             yield json.dumps({
                 "type": "summary",
                 "summary": {
