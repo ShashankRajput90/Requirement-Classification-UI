@@ -695,18 +695,27 @@ function setupBatchCharts() {
   }
 }
 
+let currentMode = "normal"; // default mode
 async function processBatch() {
   const tableBody = document.getElementById("resultsTableBody");
   const batchResults = document.getElementById("batchResults");
   const volume = document.getElementById("volumeSlider").value;
   const fileInput = document.getElementById("fileInput");
+
+if (!fileInput || fileInput.files.length === 0) {
+  showBatchError("Please upload a CSV file first.");
+  return;
+}
+
+// clear error if valid
+clearBatchError();
   const exportBtn = document.getElementById("exportBtn");
   // Reset server-side batch data before starting new batch
   await fetch("api/reset_batch", {method: "POST"}); 
 
   if (tableBody)
     tableBody.innerHTML =
-      '<tr><td colspan="4" class="px-6 py-4 text-center text-gray-500">Processing...</td></tr>';
+      '<tr><td colspan="5" class="px-6 py-4 text-center text-gray-500">Processing...</td></tr>';
   if (batchResults) batchResults.classList.remove("hidden");
 
   // Reset data
@@ -719,6 +728,7 @@ async function processBatch() {
   formData.append("count", volume);
   formData.append("model", getSelectedModel());
   formData.append("strategy", getSelectedStrategy());
+  formData.append("mode", currentMode);
 
   if (fileInput && fileInput.files.length > 0) {
     formData.append("file", fileInput.files[0]);
@@ -780,9 +790,51 @@ async function processBatch() {
   } catch (e) {
     console.error(e);
   }
+
+}
+
+function showBatchError(message) {
+  const banner = document.getElementById("batchErrorBanner");
+  const text = document.getElementById("batchErrorText");
+
+  if (banner && text) {
+    text.textContent = message;
+    banner.classList.remove("hidden");
+  }
+}
+
+function clearBatchError() {
+  const banner = document.getElementById("batchErrorBanner");
+  if (banner) banner.classList.add("hidden");
 }
 function handleStreamData(data) {
+  
+// console.log("STREAM DATA:", data);
+  // =========================
+  // 🔥 1. HANDLE GROUP START
+  // =========================
+  if (data.type === "group_start") {
+    const tableBody = document.getElementById("resultsTableBody");
+
+    const row = document.createElement("tr");
+    row.id = `group-${data.group_id}`;
+
+    row.innerHTML = `
+      <td colspan="5" class="px-6 py-3 bg-blue-100 dark:bg-blue-900/30 font-bold">
+        📦 Group ${data.group_id + 1} (${data.size} items)
+      </td>
+    `;
+
+    tableBody.appendChild(row);
+    return; // ✅ IMPORTANT
+  }
+
+
+  // =========================
+  // ✅ EXISTING RESULT LOGIC (MODIFIED)
+  // =========================
   if (data.type === "result") {
+
     // Collect data for export
     batchResultsData.push({
       story: data.story,
@@ -792,39 +844,44 @@ function handleStreamData(data) {
       reason: data.result.reason || "",
     });
 
-    // Enable export button if we have data
+    // Enable export button
     const exportBtn = document.getElementById("exportBtn");
     if (exportBtn && batchResultsData.length > 0) {
       exportBtn.disabled = false;
     }
 
-    // Update Stats
-    const stats = data.current_stats;
-    document.getElementById("totalCount").textContent = stats.total;
-    document.getElementById("frCount").textContent = stats.fr_count;
-    document.getElementById("nfrCount").textContent = stats.nfr_count;
-    document.getElementById("avgTime").textContent = `${stats.avg_time}s`;
+    // =========================
+    // 🔥 2. SAFE STATS (FIX CRASH)
+    // =========================
+    if (data.current_stats) {
+      const stats = data.current_stats;
+// console.log("STATS RECEIVED:", stats); 
+      document.getElementById("totalCount").textContent = stats.total;
+      document.getElementById("frCount").textContent = stats.fr_count;
+      document.getElementById("nfrCount").textContent = stats.nfr_count;
+      document.getElementById("avgTime").textContent = `${stats.avg_time}s`;
 
-    if (isBatchFrPlotly) {
-      const dataUpdate = {
-        labels: [["Total", "Functional", "Non-Functional"]],
-        parents: [["", "Total", "Total"]],
-        values: [[stats.total, stats.fr_count, stats.nfr_count]]
-      };
-      // Only update if total > 0 to avoid Plotly errors on empty layout
-      if (stats.total > 0) {
-        Plotly.update('batchFrPlotly', dataUpdate);
+      if (isBatchFrPlotly && stats.total > 0) {
+        Plotly.update('batchFrPlotly', {
+          labels: [["Total", "Functional", "Non-Functional"]],
+          parents: [["", "Total", "Total"]],
+          values: [[stats.total, stats.fr_count, stats.nfr_count]]
+        });
+      }
+
+      if (batchCatChart && stats.category_counts) {
+        const labels = batchCatChart.data.labels;
+        const newData = labels.map((l) => stats.category_counts[l] || 0);
+        batchCatChart.data.datasets[0].data = newData;
+        batchCatChart.update("none");
       }
     }
-    if (batchCatChart && stats.category_counts) {
-      const labels = batchCatChart.data.labels;
-      const newData = labels.map((l) => stats.category_counts[l] || 0);
-      batchCatChart.data.datasets[0].data = newData;
-      batchCatChart.update("none");
-    }
 
-    // Add Row
+    // =========================
+    // TABLE ROW
+    // =========================
     const tableBody = document.getElementById("resultsTableBody");
+
     if (tableBody) {
       if (tableBody.querySelector('td[colspan="4"]')) {
         tableBody.innerHTML = "";
@@ -835,6 +892,7 @@ function handleStreamData(data) {
       row.className = "fade-in";
 
       const isFR = item.result.classification === "FR";
+
       row.innerHTML = `
         <td class="px-6 py-4 font-medium text-gray-900 dark:text-white">${item.story}</td>
         <td class="px-6 py-4">
@@ -846,30 +904,80 @@ function handleStreamData(data) {
         <td class="px-6 py-4 text-gray-500 dark:text-gray-400 text-sm">${item.result.reason || "-"}</td>
         <td class="px-6 py-4 font-mono text-gray-500">${item.result.latency}s</td>
       `;
-      tableBody.appendChild(row);
+
+      // =========================
+      // 🔥 3. INSERT UNDER GROUP
+      // =========================
+      const groupRow = data.group_id !== undefined
+        ? document.getElementById(`group-${data.group_id}`)
+        : null;
+
+      if (groupRow) {
+        groupRow.insertAdjacentElement("afterend", row);
+      } else {
+        tableBody.appendChild(row);
+      }
     }
-  } else if (data.type === "stopped") {
-    // Batch was cancelled by the user
+  }
+
+
+  // =========================
+  // EXISTING STOP LOGIC
+  // =========================
+  else if (data.type === "stopped") {
     const submitBtn = document.getElementById("submitBtn");
     if (submitBtn) {
-      submitBtn.disabled    = false;
+      submitBtn.disabled = false;
       submitBtn.textContent = "Start Processing";
     }
+
     const tableBody = document.getElementById("resultsTableBody");
     if (tableBody && batchResultsData.length === 0) {
       tableBody.innerHTML = `<tr><td colspan="5" class="px-6 py-8 text-center text-gray-400">
-        <span class="inline-flex items-center gap-2">
-          <svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-          </svg>
-          Processing stopped.
-        </span>
+        Processing stopped.
       </td></tr>`;
     }
-    // Enable export if we got any rows before stopping
+
     const exportBtn = document.getElementById("exportBtn");
     if (exportBtn && batchResultsData.length > 0) exportBtn.disabled = false;
   }
+
+
+  // =========================
+  // EXISTING GROUP DISPLAY (KEEP)
+  // =========================
+  else if (data.type === "groups") {
+    console.log("Groups received:", data.groups);
+
+    const container = document.getElementById("groupsContainer");
+    if (container) {
+      container.classList.remove("hidden");
+    }
+
+    displayGroups(data.groups);
+  }
+}
+function displayGroups(groups) {
+  const list = document.getElementById("groupsList");
+  if (!list) return;
+
+  list.innerHTML = "";
+
+  Object.keys(groups).forEach(groupName => {
+    const groupDiv = document.createElement("div");
+    groupDiv.className = "mb-4 p-4 border rounded";
+
+    groupDiv.innerHTML = `
+      <h3 class="font-bold text-lg mb-2">${groupName}</h3>
+      <ul class="list-disc ml-5">
+        ${groups[groupName]
+          .map(story => `<li>${story}</li>`)
+          .join("")}
+      </ul>
+    `;
+
+    list.appendChild(groupDiv);
+  });
 }
 
 function exportBatchCSV() {
@@ -909,6 +1017,7 @@ function exportBatchCSV() {
   link.click();
   document.body.removeChild(link);
 }
+
 
 // --- Comparison Logic ---
 async function runModelComparison() {
@@ -1379,13 +1488,30 @@ async function loadTechniqueComparison() {
 document.addEventListener('DOMContentLoaded', () => {
   loadTechniqueComparison();
 
-  // Update slider value display
   document.addEventListener("input", (e) => {
     if (e.target.id === "volumeSlider") {
       const valEl = document.getElementById("volumeValue");
       if (valEl) valEl.textContent = e.target.value;
     }
   });
+
+  // ✅ SAFELY ATTACH BUTTON EVENTS
+  const groupBatchBtn = document.getElementById("groupBatchBtn");
+  const groupNormalBtn = document.getElementById("groupNormalBtn");
+
+  if (groupBatchBtn) {
+    groupBatchBtn.addEventListener("click", () => {
+      currentMode = "similarity";
+      processBatch();
+    });
+  }
+
+  if (groupNormalBtn) {
+    groupNormalBtn.addEventListener("click", () => {
+      currentMode = "normal";
+      processBatch();
+    });
+  }
 });
 // =========================
 // REAL-TIME FEEDBACK SYSTEM

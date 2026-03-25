@@ -67,6 +67,7 @@ class BatchResult(db.Model):
     latency        = db.Column(db.Float)
     confidence     = db.Column(db.Integer) 
     is_correct     = db.Column(db.Integer)
+    true_label     = db.Column(db.String(10))
 
     # history tracking
     history = db.relationship(
