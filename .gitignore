@@ -1,4 +1,5 @@
 .env
+.vscode/
 # Python
 __pycache__/
 *.pyc
@@ -10,3 +11,10 @@ batches/
 # OS files
 .DS_Store
 Thumbs.db
+
+#Database 
+nfr_fr_db_09-23-PM-12-03-2026.sql
+
+#Extra code file for debug
+fix_db_columns.py
+fix_sequences.py

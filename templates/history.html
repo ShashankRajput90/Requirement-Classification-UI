@@ -16,6 +16,17 @@
             </h2>
             <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">View, edit, and track all classified requirements across every batch run.</p>
         </div>
+        <!-- Generate Edited CSV button — always visible -->
+        <button id="generateCsvHeaderBtn" onclick="openCsvModal()"
+            class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold
+                   bg-emerald-600 hover:bg-emerald-500 text-white transition-colors shadow-md">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+            Generate Edited CSV
+            <span id="editedCountBadge" class="bg-white/25 text-white text-xs px-1.5 py-0.5 rounded-full hidden">0</span>
+        </button>
         <!-- Total count pill -->
         <div id="totalBadge" class="hidden items-center gap-2 px-4 py-2 rounded-2xl
             bg-gradient-to-r from-emerald-500/10 to-teal-500/10
@@ -101,6 +112,52 @@
 </div>
 
 <!-- ============================================================ -->
+<!-- Generate Edited CSV — Selection Modal -->
+<!-- ============================================================ -->
+<div id="csvSelectModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+    <div class="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl">
+        <!-- Header -->
+        <div class="p-5 border-b border-gray-200 dark:border-slate-800 flex justify-between items-center">
+            <h3 class="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+                Generate Edited CSV
+            </h3>
+            <button onclick="closeCsvModal()" class="text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <!-- Select All row -->
+        <div class="px-5 py-3 border-b border-gray-100 dark:border-slate-800 bg-gray-50/50 dark:bg-slate-800/50
+                    flex items-center justify-between">
+            <label class="flex items-center gap-3 cursor-pointer select-none">
+                <input type="checkbox" id="csvSelectAll" onchange="toggleSelectAll(this.checked)"
+                    class="w-4 h-4 rounded accent-emerald-500">
+                <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">Select All</span>
+            </label>
+            <span id="csvSelectedCount" class="text-xs text-gray-400">0 selected</span>
+        </div>
+        <!-- Story list -->
+        <div id="csvStoryList" class="overflow-y-auto flex-1 divide-y divide-gray-100 dark:divide-slate-800"></div>
+        <!-- Footer -->
+        <div class="p-5 border-t border-gray-200 dark:border-slate-800 flex justify-end gap-3">
+            <button onclick="closeCsvModal()" class="px-4 py-2 rounded-lg text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors">Cancel</button>
+            <button id="generateCsvBtn" onclick="generateSelectedCSV()"
+                class="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold rounded-lg transition-colors flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+                Download CSV
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================ -->
 <!-- Edit Modal -->
 <!-- ============================================================ -->
 <div id="editModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
@@ -155,7 +212,9 @@
 // State
 // ===============================================================
 let _currentPage  = 1;
-let _editingId    = null;   // result ID being edited
+let _editingId    = null;
+let _editingMeta  = {};   // full row metadata for the story being edited
+const editedStories = new Map(); // id → {id, story, classification, category, model, classified_at}
 
 // ===============================================================
 // Boot: load batch runs dropdown then first page
@@ -255,7 +314,8 @@ async function loadPage(page) {
                         <button title="Edit"
                             data-result-id="${row.id}"
                             data-story="${escapeAttr(row.story)}"
-                            onclick="openEditModal(parseInt(this.dataset.resultId), this.dataset.story)"
+                            data-meta='${JSON.stringify({classification:row.classification,category:row.category||'',model:row.model||'',classified_at:row.created_at||''})}'
+                            onclick="openEditModal(parseInt(this.dataset.resultId), this.dataset.story, JSON.parse(this.dataset.meta))"
                             class="p-1.5 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-800/50 transition-colors">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                         </button>
@@ -301,8 +361,9 @@ function renderPagination(page, pages) {
 // ===============================================================
 // Edit Modal
 // ===============================================================
-function openEditModal(resultId, currentStory) {
-    _editingId = resultId;
+function openEditModal(resultId, currentStory, meta) {
+    _editingId   = resultId;
+    _editingMeta = meta || {};
     document.getElementById('editStoryTextarea').value = currentStory || '';
     document.getElementById('editModal').classList.remove('hidden');
     document.getElementById('editStoryTextarea').focus();
@@ -330,8 +391,18 @@ async function saveRequirementEdit() {
         });
         const data = await res.json();
         if (res.ok && data.success) {
+            // Track full metadata for CSV generation
+            editedStories.set(_editingId, {
+                id:             _editingId,
+                story:          newStory,
+                classification: _editingMeta.classification || '',
+                category:       _editingMeta.category       || '',
+                model:          _editingMeta.model          || '',
+                classified_at:  _editingMeta.classified_at  || ''
+            });
+            refreshEditedBtn();
             closeEditModal();
-            loadPage(_currentPage);   // Refresh the table
+            loadPage(_currentPage);
         } else {
             alert(data.error || 'Could not save.');
         }
@@ -341,6 +412,140 @@ async function saveRequirementEdit() {
         btn.disabled    = false;
         btn.textContent = 'Save Changes';
     }
+}
+
+// ===============================================================
+// Generate Edited CSV — header button + selection modal
+// ===============================================================
+function refreshEditedBtn() {
+    // Update session-edit badge (button is always visible)
+    const badge = document.getElementById('editedCountBadge');
+    if (editedStories.size > 0) {
+        badge.textContent = editedStories.size;
+        badge.classList.remove('hidden');
+    } else {
+        badge.classList.add('hidden');
+    }
+}
+
+async function openCsvModal() {
+    const list = document.getElementById('csvStoryList');
+    list.innerHTML = `<div class="flex items-center justify-center py-10 gap-2 text-gray-400 text-sm">
+        <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+        </svg>
+        Loading edited stories…
+    </div>`;
+    document.getElementById('csvSelectModal').classList.remove('hidden');
+
+    // Fetch all DB-stored edits
+    let dbEdited = [];
+    try {
+        const res = await fetch('/api/requirements/edited');
+        if (res.ok) dbEdited = await res.json();
+    } catch (e) { console.error('Could not fetch edited stories:', e); }
+
+    // Merge: session edits override DB for same id (they have the latest text)
+    // Build a combined Map: id -> story object, session edits take priority
+    const combined = new Map();
+    dbEdited.forEach(s => combined.set(s.id, {
+        id:             s.id,
+        story:          s.story,
+        classification: s.classification || '',
+        category:       s.category       || '',
+        model:          s.model          || '',
+        classified_at:  s.classified_at  || '',
+        edit_count:     s.edit_count     || 0,
+        source:         'db'
+    }));
+    // Session edits override / add on top
+    editedStories.forEach((s, id) => combined.set(id, { ...combined.get(id), ...s, source: 'session' }));
+
+    list.innerHTML = '';
+    if (!combined.size) {
+        list.innerHTML = `<div class="py-12 text-center text-gray-400 text-sm">No edited stories found.</div>`;
+        document.getElementById('csvSelectAll').checked = false;
+        updateCsvSelectedCount();
+        return;
+    }
+
+    combined.forEach((s, id) => {
+        const div   = document.createElement('div');
+        div.className = 'flex items-start gap-3 px-5 py-3 hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors';
+        const isFR  = s.classification === 'FR';
+        const clsBadge = `<span class="px-1.5 py-0.5 rounded text-xs font-bold ${
+            isFR ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
+                 : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+        }">${s.classification || '?'}</span>`;
+        const srcBadge = s.source === 'session'
+            ? `<span class="text-xs px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300 rounded-full font-medium">This session</span>`
+            : `<span class="text-xs px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-300 rounded-full font-medium">${s.edit_count} edit${s.edit_count !== 1 ? 's' : ''}</span>`;
+        div.innerHTML = `
+            <input type="checkbox" data-id="${id}" checked
+                onchange="updateCsvSelectedCount()"
+                class="mt-1 w-4 h-4 rounded accent-emerald-500 flex-shrink-0 csv-row-check">
+            <div class="flex-1 min-w-0">
+                <p class="text-sm text-gray-900 dark:text-white leading-snug">${escapeHtml(s.story)}</p>
+                <div class="flex items-center gap-2 mt-1.5 flex-wrap">
+                    ${clsBadge}
+                    ${srcBadge}
+                    ${s.category ? `<span class="text-xs text-gray-400">${escapeHtml(s.category)}</span>` : ''}
+                    <span class="text-xs text-gray-400">${escapeHtml(s.model)}</span>
+                </div>
+            </div>`;
+        list.appendChild(div);
+    });
+    // Store combined map for CSV generation
+    window._csvCombined = combined;
+    document.getElementById('csvSelectAll').checked = true;
+    updateCsvSelectedCount();
+}
+
+function closeCsvModal() {
+    document.getElementById('csvSelectModal').classList.add('hidden');
+}
+
+function updateCsvSelectedCount() {
+    const checks = document.querySelectorAll('.csv-row-check');
+    const sel    = [...checks].filter(c => c.checked).length;
+    document.getElementById('csvSelectedCount').textContent = `${sel} selected`;
+    document.getElementById('csvSelectAll').checked = sel === checks.length;
+    document.getElementById('generateCsvBtn').disabled = sel === 0;
+}
+
+function toggleSelectAll(checked) {
+    document.querySelectorAll('.csv-row-check').forEach(c => c.checked = checked);
+    updateCsvSelectedCount();
+}
+
+function generateSelectedCSV() {
+    const checks = document.querySelectorAll('.csv-row-check:checked');
+    if (!checks.length) return;
+
+    // Use _csvCombined if available (loaded from DB merge), fallback to session Map
+    const source   = window._csvCombined || editedStories;
+    const selected = [...checks].map(c => source.get(parseInt(c.dataset.id))).filter(Boolean);
+    const headers  = ['story', 'classification', 'category', 'model', 'classified_at'];
+    const rows     = [headers.join(',')];
+    selected.forEach(s => {
+        rows.push([
+            `"${(s.story          || '').replace(/"/g, '""')}"`,
+            `"${(s.classification || '').replace(/"/g, '""')}"`,
+            `"${(s.category       || '').replace(/"/g, '""')}"`,
+            `"${(s.model          || '').replace(/"/g, '""')}"`,
+            `"${(s.classified_at  || '').replace(/"/g, '""')}"`
+        ].join(','));
+    });
+
+    const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `edited_stories_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    closeCsvModal();
 }
 
 // ===============================================================
