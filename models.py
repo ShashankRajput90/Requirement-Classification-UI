@@ -154,3 +154,62 @@ class RequirementHistory(db.Model):
         back_populates="edits",
         foreign_keys=[user_id]
     )
+    
+    
+# ==========================
+# ANNOTATION MODEL
+# ==========================
+class Annotation(db.Model):
+    """
+    Stores human-assigned ground-truth labels for any requirement.
+    Can be linked to an existing BatchResult or be standalone.
+    """
+    __tablename__ = "annotations"
+ 
+    id                  = db.Column(db.Integer, primary_key=True)
+ 
+    # Optional link to a classified result
+    batch_result_id     = db.Column(
+        db.Integer,
+        db.ForeignKey("batch_results.id", ondelete="SET NULL"),
+        nullable=True
+    )
+ 
+    # Who annotated
+    user_id             = db.Column(
+        db.Integer,
+        db.ForeignKey("users.id"),
+        nullable=False
+    )
+ 
+    # The requirement text (stored here so annotation survives result deletion)
+    story               = db.Column(db.Text, nullable=False)
+ 
+    # Human ground-truth
+    true_label          = db.Column(db.String(10),  nullable=False)   # 'FR' or 'NFR'
+    nfr_type            = db.Column(db.String(100),  nullable=True)   # e.g. 'Performance'
+    confidence          = db.Column(db.Integer,      nullable=True)   # annotator confidence 1–5
+    notes               = db.Column(db.Text,         nullable=True)   # free-text comment
+ 
+    # Snapshot of what the model predicted at annotation time
+    model_label         = db.Column(db.String(10),  nullable=True)
+    model_name          = db.Column(db.String(100), nullable=True)
+ 
+    # Auto-computed: True = human agrees with model, False = disagrees, None = no model pred
+    agrees_with_model   = db.Column(db.Boolean,     nullable=True)
+ 
+    # Workflow status: 'pending' → 'reviewed' → 'exported'
+    status              = db.Column(db.String(20),  default="pending", nullable=False)
+ 
+    annotated_at        = db.Column(
+        db.DateTime,
+        server_default=db.func.current_timestamp()
+    )
+    updated_at          = db.Column(
+        db.DateTime,
+        onupdate=db.func.current_timestamp()
+    )
+ 
+    # Relationships
+    annotator    = db.relationship("User",        backref="annotations", foreign_keys=[user_id])
+    batch_result = db.relationship("BatchResult", backref="annotations", foreign_keys=[batch_result_id])
