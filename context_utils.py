@@ -3,40 +3,46 @@ context_utils.py
 ----------------
 Shared utilities for domain-context-aware classification and RQI scoring.
 Used by:
-  - app.py
-  - context_based_evaluation.py
+  - app.py (Flask routes)
+  - context_based_evaluation.py (offline evaluation script)
 """
 
 import re
-
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+
+# ==========================
+# DOMAIN CONTEXT TEMPLATES
+# ==========================
 
 DOMAIN_CONTEXTS = {
     "Software Application": {
         "system": "Software system handling user accounts and transactions",
-        "stakeholders": "End users, developers, administrators",
+        "stakeholders": "End users, developers, administrators"
     },
     "Healthcare System": {
         "system": "Electronic health record system storing patient data",
-        "stakeholders": "Doctors, nurses, hospital admins, patients",
+        "stakeholders": "Doctors, nurses, hospital admins, patients"
     },
     "E-Commerce": {
         "system": "Online shopping platform managing products and orders",
-        "stakeholders": "Customers, sellers, admins",
+        "stakeholders": "Customers, sellers, admins"
     },
     "Banking System": {
         "system": "Banking system handling financial transactions",
-        "stakeholders": "Customers, bank staff, regulators",
+        "stakeholders": "Customers, bank staff, regulators"
     },
     "IoT System": {
         "system": "Smart IoT system managing connected sensors",
-        "stakeholders": "Operators, engineers, users",
-    },
+        "stakeholders": "Operators, engineers, users"
+    }
 }
 
 DOMAIN_LIST = list(DOMAIN_CONTEXTS.keys())
 
+# ==========================
+# SYSTEM CONTEXT BUILDER
+# ==========================
 
 def create_system_context(domain: str, stakeholders: str, system_desc: str) -> str:
     return f"""System Domain: {domain}
@@ -56,13 +62,14 @@ The system must ensure:
 - Compliance
 - Maintainability"""
 
+# ==========================
+# TF-IDF CONTEXT BUILDER
+# ==========================
 
 def build_tfidf_context(df, index, tfidf_matrix, threshold=0.1, window_size=5):
     """
-    Return neighboring requirement context using TF-IDF cosine similarity.
-
-    The function scans a configurable window around the current row and keeps
-    only neighbors whose similarity score meets the threshold.
+    Returns (previous_context, next_context) strings based on
+    cosine similarity of neighboring requirements.
     """
     prev_reqs = []
     next_reqs = []
@@ -70,30 +77,29 @@ def build_tfidf_context(df, index, tfidf_matrix, threshold=0.1, window_size=5):
 
     for i in range(1, window_size + 1):
         if index - i >= 0:
-            sim = cosine_similarity(current_vector, tfidf_matrix[index - i : index - i + 1])[0][0]
+            sim = cosine_similarity(current_vector, tfidf_matrix[index - i:index - i + 1])[0][0]
             if sim >= threshold:
                 prev_reqs.append(df.iloc[index - i]["story"])
-
         if index + i < len(df):
-            sim = cosine_similarity(current_vector, tfidf_matrix[index + i : index + i + 1])[0][0]
+            sim = cosine_similarity(current_vector, tfidf_matrix[index + i:index + i + 1])[0][0]
             if sim >= threshold:
                 next_reqs.append(df.iloc[index + i]["story"])
 
     previous_context = "\n".join(prev_reqs[::-1]) if prev_reqs else "None"
-    next_context = "\n".join(next_reqs) if next_reqs else "None"
+    next_context     = "\n".join(next_reqs)       if next_reqs else "None"
     return previous_context, next_context
 
+# ==========================
+# CONTEXT PROMPT BUILDER
+# ==========================
 
 def create_context_prompt(
     previous_context: str,
     current_req: str,
     next_context: str,
     technique: str,
-    system_context: str,
+    system_context: str
 ) -> str:
-    """
-    Build a domain-aware classification prompt with neighboring requirement context.
-    """
     examples = ""
     if technique == "few_shot":
         examples = """
@@ -154,7 +160,7 @@ INSTRUCTIONS
 
 OUTPUT FORMAT (STRICT)
 ----------------------
-Respond ONLY in this exact format with no extra text:
+Respond ONLY in this exact format - no extra text:
 
 Is NFR: Yes or No
 NFR Type: <Performance | Security | Usability | Reliability | Scalability | Availability | Maintainability | Privacy | Safety | Compliance | None>
@@ -162,134 +168,115 @@ Reason: <one sentence>
 Confidence: <number between 0 and 100>
 """
 
+# ==========================
+# RESPONSE EXTRACTION
+# ==========================
 
 def extract_is_nfr(response: str) -> str:
-    """Return 'Yes' or 'No' from an LLM response."""
+    """Returns 'Yes' or 'No'"""
     if not response:
         return "No"
-
     match = re.search(r"Is\s*NFR\s*:\s*(Yes|No)", response, re.IGNORECASE)
     if match:
         return "Yes" if match.group(1).lower() == "yes" else "No"
     return "No"
 
-
 def extract_nfr_type(response: str) -> str:
-    """Extract the NFR type from a model response."""
+    """Extracts NFR type from model response"""
     match = re.search(
         r"NFR\s*Type\s*[:\-]\s*(Performance|Security|Usability|Reliability|Scalability|"
         r"Availability|Maintainability|Privacy|Safety|Compliance|None)",
-        response,
-        re.IGNORECASE,
+        response, re.IGNORECASE
     )
     if match:
         return match.group(1).capitalize()
     return "None"
 
-
 def extract_reason(response: str) -> str:
-    """Extract the reason sentence from a model response."""
+    """Extracts reason from model response"""
     match = re.search(r"Reason\s*:\s*(.+)", response, re.IGNORECASE)
     if match:
         return match.group(1).strip()
     return "No reason provided"
 
-
 def extract_confidence(response: str) -> int:
     """
-    Extract a confidence score (0-100) from common LLM response formats.
-    Falls back to 70 when confidence is not present.
+    Extracts confidence score (0-100) from any LLM response format.
+    Handles 'Confidence: 85' and '4. Confidence: 85' formats.
+    Falls back to 70 when not found.
     """
     if not response:
         return 70
-
     match = re.search(r"(?:4\.)?\s*Confidence\s*[:\-]\s*([0-9]{1,3})", response, re.IGNORECASE)
     if match:
-        value = int(match.group(1))
-        return min(100, max(0, value))
-
+        val = int(match.group(1))
+        return min(100, max(0, val))
+    # Fallback: standalone number 50-100 at end of a line
     match = re.search(r"\b([5-9][0-9]|100)\b\s*$", response, re.IGNORECASE | re.MULTILINE)
     if match:
         return int(match.group(1))
-
     return 70
 
-
 def extract_rqi_score(response: str):
-    """Extract a numeric RQI score (0-10) from model output."""
-    text = str(response)
-    match = re.search(r"([0-9]*\.?[0-9]+)", text)
+    """Extracts numeric RQI score (0-10) from LLM response"""
+    text  = str(response)
+    match = re.search(r'([0-9]*\.?[0-9]+)', text)
     if match:
         score = float(match.group(1))
         if 0 <= score <= 10:
             return score
     return None
 
+# ==========================
+# RQI - RULE-BASED
+# ==========================
 
 def calculate_rqi_rule_based(requirement: str) -> int:
-    """
-    Score a requirement on 15 quality criteria and return a 0-10 score.
-    """
     if not requirement or not isinstance(requirement, str):
         return 0
 
-    req = requirement.lower().strip()
+    req   = requirement.lower().strip()
     score = 0
 
-    if any(word in req for word in ["system", "application", "user"]) and any(
-        word in req for word in ["shall", "must"]
-    ):
+    if any(w in req for w in ["system", "application", "user"]) and \
+       any(w in req for w in ["shall", "must"]):
         score += 1
-
-    if not any(word in req for word in ["fast", "quick", "efficient", "etc", "user-friendly"]):
+    if not any(w in req for w in ["fast", "quick", "efficient", "etc", "user-friendly"]):
         score += 1
-
-    if any(word in req for word in ["if", "when", "within", "under", "before", "after"]):
+    if any(w in req for w in ["if", "when", "within", "under", "before", "after"]):
         score += 1
-
     if not ("must not" in req and "must" in req):
         score += 1
-
-    if not any(word in req for word in ["always", "never fail", "perfect", "100% secure"]):
+    if not any(w in req for w in ["always", "never fail", "perfect", "100% secure"]):
         score += 1
-
-    if any(word in req for word in ["seconds", "ms", "%", "response time", "latency"]):
+    if any(w in req for w in ["seconds", "ms", "%", "response time", "latency"]):
         score += 1
-
-    if any(word in req for word in ["shall", "must"]):
+    if any(w in req for w in ["shall", "must"]):
         score += 1
-
     if len(req.split()) < 40:
         score += 1
-
     if req.count(" and ") <= 1:
         score += 1
-
     if req.startswith(("the system", "the application", "the software")):
         score += 1
-
-    if not any(word in req for word in ["maybe", "possibly", "should ideally"]):
+    if not any(w in req for w in ["maybe", "possibly", "should ideally"]):
         score += 1
-
-    if any(word in req for word in ["verify", "validate", "measure"]):
+    if any(w in req for w in ["verify", "validate", "measure"]):
         score += 1
-
     if "encrypt" in req or "authentication" in req:
         score += 1
-
     if "as a" in req and "i want" in req:
         score += 1
-
-    if any(word in req for word in ["within", "throughput", "latency"]):
+    if any(w in req for w in ["within", "throughput", "latency"]):
         score += 1
 
     return round((score / 15) * 10)
 
+# ==========================
+# RQI - LLM-BASED
+# ==========================
 
 def calculate_rqi_llm(requirement: str, model_fns: list) -> float:
-    """
-    Call one or more model functions and return the average RQI score.
-    """
     prompt = f"""Evaluate the quality of this software requirement.
 
 Requirement:
@@ -299,40 +286,39 @@ Score it using Requirement Quality Index (RQI) from 0 to 10.
 Return ONLY a number like:
 RQI: 7.5
 """
-
     scores = []
     for model_fn, name in model_fns:
         try:
             response = model_fn(prompt, "zero_shot")
-            score = extract_rqi_score(response)
+            score    = extract_rqi_score(response)
             if score is not None:
                 scores.append(score)
-        except Exception as exc:
-            print(f"RQI LLM error ({name}): {exc}")
+        except Exception as e:
+            print(f"RQI LLM error ({name}): {e}")
 
     return round(sum(scores) / len(scores), 1) if scores else None
 
+# ==========================
+# COMBINED RQI
+# ==========================
 
 def calculate_combined_rqi(requirement: str, model_fns: list = None) -> dict:
-    """
-    Blend rule-based and LLM-based RQI into a single summary payload.
-    """
     rule_score = calculate_rqi_rule_based(requirement)
-    llm_score = None
-    final_score = float(rule_score)
+    llm_score  = None
+    final      = float(rule_score)
 
     if model_fns:
         llm_score = calculate_rqi_llm(requirement, model_fns)
         if llm_score is not None:
-            final_score = round((rule_score + llm_score) / 2, 1)
+            final = round((rule_score + llm_score) / 2, 1)
 
-    if final_score >= 8:
+    if final >= 8:
         label = "Excellent"
         color = "green"
-    elif final_score >= 6:
+    elif final >= 6:
         label = "Good"
         color = "blue"
-    elif final_score >= 4:
+    elif final >= 4:
         label = "Fair"
         color = "yellow"
     else:
@@ -340,113 +326,96 @@ def calculate_combined_rqi(requirement: str, model_fns: list = None) -> dict:
         color = "red"
 
     return {
-        "rule_score": rule_score,
-        "llm_score": llm_score,
-        "final_score": final_score,
-        "label": label,
-        "color": color,
+        "rule_score":  rule_score,
+        "llm_score":   llm_score,
+        "final_score": final,
+        "label":       label,
+        "color":       color
     }
 
+# ==========================
+# CRITERIA BREAKDOWN
+# ==========================
 
 def get_rqi_criteria_breakdown(requirement: str) -> list:
-    """Return pass/fail details for the 15 RQI criteria."""
     req = requirement.lower().strip()
 
-    return [
+    criteria = [
         {
             "name": "Correctness",
-            "passed": any(word in req for word in ["system", "application", "user"])
-            and any(word in req for word in ["shall", "must"]),
-            "description": "References the system and uses 'shall'/'must'",
+            "passed": any(w in req for w in ["system", "application", "user"]) and
+                      any(w in req for w in ["shall", "must"]),
+            "description": "References the system and uses 'shall'/'must'"
         },
         {
             "name": "Clarity",
-            "passed": not any(word in req for word in ["fast", "quick", "efficient", "etc", "user-friendly"]),
-            "description": "Avoids vague terms like 'fast' and 'user-friendly'",
+            "passed": not any(w in req for w in ["fast", "quick", "efficient", "etc", "user-friendly"]),
+            "description": "Avoids vague terms like 'fast', 'user-friendly'"
         },
         {
             "name": "Completeness",
-            "passed": any(word in req for word in ["if", "when", "within", "under", "before", "after"]),
-            "description": "Specifies conditions or constraints",
+            "passed": any(w in req for w in ["if", "when", "within", "under", "before", "after"]),
+            "description": "Specifies conditions or constraints"
         },
         {
             "name": "Consistency",
             "passed": not ("must not" in req and "must" in req),
-            "description": "No contradictory statements",
+            "description": "No contradictory statements"
         },
         {
             "name": "Feasibility",
-            "passed": not any(word in req for word in ["always", "never fail", "perfect", "100% secure"]),
-            "description": "No unrealistic absolutes",
+            "passed": not any(w in req for w in ["always", "never fail", "perfect", "100% secure"]),
+            "description": "No unrealistic absolutes"
         },
         {
             "name": "Verifiability",
-            "passed": any(word in req for word in ["seconds", "ms", "%", "response time", "latency"]),
-            "description": "Contains measurable metrics",
+            "passed": any(w in req for w in ["seconds", "ms", "%", "response time", "latency"]),
+            "description": "Contains measurable metrics"
         },
         {
             "name": "Traceability",
-            "passed": any(word in req for word in ["shall", "must"]),
-            "description": "Uses formal requirement language",
+            "passed": any(w in req for w in ["shall", "must"]),
+            "description": "Uses formal requirement language"
         },
         {
             "name": "Modifiability",
             "passed": len(req.split()) < 40,
-            "description": "Concise under 40 words",
+            "description": "Concise - under 40 words"
         },
         {
             "name": "Atomicity",
             "passed": req.count(" and ") <= 1,
-            "description": "Focuses on a single concern",
+            "description": "Focuses on a single concern"
         },
         {
             "name": "Structured Language",
             "passed": req.startswith(("the system", "the application", "the software")),
-            "description": "Starts with 'The system/application/software'",
+            "description": "Starts with 'The system/application/software'"
         },
         {
             "name": "Unambiguity",
-            "passed": not any(word in req for word in ["maybe", "possibly", "should ideally"]),
-            "description": "No ambiguous qualifiers",
+            "passed": not any(w in req for w in ["maybe", "possibly", "should ideally"]),
+            "description": "No ambiguous qualifiers"
         },
         {
             "name": "Testability",
-            "passed": any(word in req for word in ["verify", "validate", "measure"]),
-            "description": "Can be tested or verified",
+            "passed": any(w in req for w in ["verify", "validate", "measure"]),
+            "description": "Can be tested or verified"
         },
         {
             "name": "Security Awareness",
             "passed": "encrypt" in req or "authentication" in req,
-            "description": "Mentions security mechanisms",
+            "description": "Mentions security mechanisms"
         },
         {
             "name": "User Story Format",
             "passed": "as a" in req and "i want" in req,
-            "description": "Follows 'As a... I want...' format",
+            "description": "Follows 'As a... I want...' format"
         },
         {
             "name": "Performance Constraint",
-            "passed": any(word in req for word in ["within", "throughput", "latency"]),
-            "description": "Specifies performance bounds",
+            "passed": any(w in req for w in ["within", "throughput", "latency"]),
+            "description": "Specifies performance bounds"
         },
     ]
-
-
-__all__ = [
-    "DOMAIN_CONTEXTS",
-    "DOMAIN_LIST",
-    "create_system_context",
-    "TfidfVectorizer",
-    "cosine_similarity",
-    "build_tfidf_context",
-    "create_context_prompt",
-    "extract_is_nfr",
-    "extract_nfr_type",
-    "extract_reason",
-    "extract_confidence",
-    "extract_rqi_score",
-    "calculate_rqi_rule_based",
-    "calculate_rqi_llm",
-    "calculate_combined_rqi",
-    "get_rqi_criteria_breakdown",
-]
+    return criteria
