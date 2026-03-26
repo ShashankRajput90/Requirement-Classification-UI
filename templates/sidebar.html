@@ -106,6 +106,22 @@
         </svg>
         <span class="ml-3 hidden group-hover:block whitespace-nowrap fade-in">Evaluate Model</span>
     </a>
+    <a href="{{ url_for('calibration_page') }}"
+    class="sidebar-link flex items-center px-4 py-3 rounded-lg text-sm font-medium 
+    {% if page == 'calibration' %}active bg-blue-500/10 text-blue-400 border-r-4 border-blue-500
+    {% else %}text-gray-400 hover:text-white{% endif %}
+    justify-center group-hover:justify-start">
+
+    <svg class="w-6 h-6 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9 17v-2a4 4 0 014-4h6m-6 4v6m0 0l3-3m-3 3l-3-3">
+        </path>
+    </svg>
+
+    <span class="ml-3 hidden group-hover:block whitespace-nowrap fade-in">
+        Calibration
+    </span>
+</a>
     <a href="{{ url_for('history') }}"
         class="sidebar-link flex items-center px-4 py-3 rounded-lg text-sm font-medium {% if page == 'history' %}active bg-emerald-500/10 text-emerald-400 border-r-4 border-emerald-500{% else %}text-gray-400 hover:text-white{% endif %} justify-center group-hover:justify-start">
         <svg class="w-6 h-6 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">

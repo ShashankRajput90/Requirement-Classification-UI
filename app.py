@@ -1,18 +1,16 @@
 import re
 import json
+from statistics import mode
 import time
 import os
 import threading
 from dotenv import load_dotenv
 load_dotenv()
-
+import hashlib
 # Thread-safe per-user batch progress store
 # {user_id: {"total": int, "processed": int, "status": "running"|"done"|"idle", "run_id": int}}
 _batch_progress: dict = {}
 _batch_progress_lock = threading.Lock()
-
-# Set of user_ids that have requested a stop
-_batch_stop_signals: set = set()
 
 import pandas as pd
 from flask import Flask, render_template, request, jsonify, Response, stream_with_context, session, redirect, url_for
@@ -20,10 +18,20 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_required, login_user, logout_user, current_user
 from authlib.integrations.flask_client import OAuth
 from sqlalchemy import func
-
+from similarity_grouping import group_requirements
 from code_integration import classify
 from models import db, User, BatchRun, BatchResult, RequirementHistory, Feedback, Annotation
 from keyword_highlighter import highlight_keywords
+import random
+# =========================
+# Adaptive Cache System
+# =========================
+cache_store = {}
+cache_lock = threading.Lock()
+
+CACHE_TTL = 3600  # 1 hour
+CONFIDENCE_THRESHOLD = 70
+REVALIDATION_PROBABILITY = 0.1  # 10% sampling
 
 # Add to existing imports at top of app.py
 from sklearn.metrics import (
@@ -180,7 +188,123 @@ def parse_backend_response(raw_response, model, strategy, latency=0):
         "step_by_step": step_by_step,
         "raw_response": raw_response
     }
+    
+# =========================
+# FILE-BASED CACHE SETUP
+# =========================
 
+
+CACHE_DIR = "cache"
+os.makedirs(CACHE_DIR, exist_ok=True)
+
+def hash_key(key: str):
+    return hashlib.md5(key.encode()).hexdigest()
+
+def save_cache_to_file(key, entry):
+    file_key = hash_key(key)
+    filepath = os.path.join(CACHE_DIR, f"{file_key}.json")
+
+    with open(filepath, "w") as f:
+        json.dump(entry, f)
+
+def load_cache_from_file(key):
+    file_key = hash_key(key)
+    filepath = os.path.join(CACHE_DIR, f"{file_key}.json")
+
+    if not os.path.exists(filepath):
+        return None
+
+    try:
+        with open(filepath, "r") as f:
+            return json.load(f)
+    except:
+        return None
+
+def is_cache_valid(entry):
+    if time.time() - entry["timestamp"] > CACHE_TTL:
+        return False
+
+    if entry["data"].get("confidence", 0) < CONFIDENCE_THRESHOLD:
+        return False
+
+    return True
+
+
+def maybe_revalidate_cache(key, entry, backend_model, strategy, model, story):
+    if random.random() > REVALIDATION_PROBABILITY:
+        return entry["data"]
+
+    try:
+        raw_response, status_code = classify(backend_model, story, strategy)
+
+        if status_code == 200:
+            new_result = parse_backend_response(raw_response, model, strategy)
+
+            if new_result.get("classification") != entry["data"].get("classification"):
+                entry["data"] = new_result
+                entry["timestamp"] = time.time()
+                entry["last_validated"] = time.time()
+                entry["validation_count"] += 1
+
+                # 🔥 SAVE UPDATED CACHE
+                save_cache_to_file(key, entry)
+
+        return entry["data"]
+
+    except:
+        return entry["data"]
+def generate_cache_key(story, model, strategy):
+    return f"{story.strip().lower()}::{model}::{strategy}"
+
+def get_cached_or_compute(story, model, strategy, backend_model, technique):
+    key = generate_cache_key(story, model, strategy)
+
+    # =========================
+    # CHECK CACHE (MEMORY + FILE)
+    # =========================
+    with cache_lock:
+        entry = cache_store.get(key)
+
+        # 🔹 Load from file if not in memory
+        if not entry:
+            entry = load_cache_from_file(key)
+            if entry:
+                cache_store[key] = entry
+
+        if entry and is_cache_valid(entry):
+            result = maybe_revalidate_cache(
+                key, entry, backend_model, technique, model, story
+            )
+            result["cache_hit"] = True
+            return result
+
+    # =========================
+    # CACHE MISS → COMPUTE
+    # =========================
+    start_t = time.time()
+    raw_response, status_code = classify(backend_model, story, technique)
+    latency = round(time.time() - start_t, 2)
+
+    if status_code != 200:
+        return {"error": raw_response}
+
+    result = parse_backend_response(raw_response, model, strategy, latency)
+
+    entry = {
+        "data": result,
+        "timestamp": time.time(),
+        "last_validated": time.time(),
+        "validation_count": 0
+    }
+
+    with cache_lock:
+        cache_store[key] = entry
+
+    # 🔥 SAVE TO FILE
+    save_cache_to_file(key, entry)
+
+    result["cache_hit"] = False
+    return result
 
 def extract_confidence(raw_response):
     """Extract a numeric confidence value from model output, defaulting to 0."""
@@ -315,14 +439,16 @@ def single():
         technique     = STRATEGY_MAP.get(strategy, "zero_shot")
 
         try:
-            start_t = time.time()
-            raw_response, status_code = classify(backend_model, story, technique)
-            latency = round(time.time() - start_t, 2)
+            result = get_cached_or_compute(
+                story,
+                model,
+                strategy,
+                backend_model,
+                technique
+            )
 
-            if status_code != 200:
-                return jsonify(raw_response), status_code
-
-            result = parse_backend_response(raw_response, model, strategy, latency)
+            if "error" in result:
+                return jsonify(result), 500
          # Add keyword highlighting for explainability
             highlighted_story = highlight_keywords(story)
             result["highlighted_story"] = highlighted_story
@@ -334,7 +460,9 @@ def single():
                 model=model,
                 classification=result["classification"],
                 category=result.get("category"),
-                latency=result.get("latency")
+                latency=result.get("latency"),
+                confidence=result.get("confidence"),
+                 
             )
 
             db.session.add(result_row)
@@ -351,7 +479,7 @@ def single():
 
 
 # =========================
-# Batch Status & Stop
+# Batch Status
 # =========================
 @app.route('/api/batch/status')
 @login_required
@@ -359,17 +487,6 @@ def batch_status():
     with _batch_progress_lock:
         prog = _batch_progress.get(current_user.id, {"status": "idle"})
     return jsonify(prog)
-
-
-@app.route('/api/batch/stop', methods=['POST'])
-@login_required
-def batch_stop():
-    uid = current_user.id
-    _batch_stop_signals.add(uid)
-    with _batch_progress_lock:
-        if uid in _batch_progress:
-            _batch_progress[uid]["status"] = "stopped"
-    return jsonify({"success": True})
 
 
 # =========================
@@ -382,35 +499,30 @@ def batch():
         count    = int(request.form.get('count', 10))
         model    = request.form.get('model', 'ChatGPT')
         strategy = request.form.get('strategy', 'Zero-shot')
-
+        mode = request.form.get('mode', 'normal')
         backend_model = MODEL_MAP.get(model, "groq_gpt")
         technique     = STRATEGY_MAP.get(strategy, "zero_shot")
 
         # File upload handling
-        if 'file' in request.files and request.files['file'].filename != '':
-            file = request.files['file']
-            try:
-                df = pd.read_csv(file)
-                story_col = None
-                for col in ['story', 'user_story', 'User Story', 'text', 'content']:
-                    if col in df.columns:
-                        story_col = col
-                        break
-                if not story_col:
-                    return jsonify({"error": "CSV must contain story column."}), 400
-                df = df.rename(columns={story_col: 'story'})
-                sampled_df = df.head(min(count, len(df))).reset_index(drop=True)
-            except Exception as e:
-                return jsonify({"error": f"Failed to parse CSV: {str(e)}"}), 400
-        else:
-            batch_dir = "batches"
-            if not os.path.exists(batch_dir):
-                return jsonify({"error": "No batch data found."}), 500
-            batch_files = [f for f in os.listdir(batch_dir) if f.endswith('.csv')]
-            if not batch_files:
-                return jsonify({"error": "No CSV files in batches folder."}), 500
-            df = pd.read_csv(os.path.join(batch_dir, batch_files[0]))
-            sampled_df = df.sample(n=min(count, len(df))).reset_index(drop=True)
+        if 'file' not in request.files or request.files['file'].filename == '':
+            return jsonify({"error": "Please upload a CSV file."}), 400
+
+
+        file = request.files['file']
+        try:
+            df = pd.read_csv(file)
+            story_col = None
+            for col in ['story', 'user_story', 'User Story', 'text', 'content']:
+                if col in df.columns:
+                    story_col = col
+                    break
+            if not story_col:
+                return jsonify({"error": "CSV must contain story column."}), 400
+            df = df.rename(columns={story_col: 'story'})
+            sampled_df = df.head(min(count, len(df))).reset_index(drop=True)
+        except Exception as e:
+            return jsonify({"error": f"Failed to parse CSV: {str(e)}"}), 400
+        
 
         # Use Flask-Login's current_user instead of session
         user_id    = current_user.id
@@ -433,44 +545,49 @@ def batch():
             total_time = 0
             processed = 0
             category_counts = {c: 0 for c in CATEGORIES}
-
-            # Clear any previous stop signal for this user
-            _batch_stop_signals.discard(user_id)
-
-            # Mark as running in the global progress store
+            # Mark as running
             with _batch_progress_lock:
                 _batch_progress[user_id] = {
-                    "status": "running",
-                    "total": total_rows,
+                    "status": "running","total": total_rows,
                     "processed": 0,
                     "run_id": batch_run_id,
-                }
+                    }
 
-            for _, row in sampled_df.iterrows():
-                # Check for stop signal before each story
-                if user_id in _batch_stop_signals:
-                    _batch_stop_signals.discard(user_id)
-                    with _batch_progress_lock:
-                        if user_id in _batch_progress:
-                            _batch_progress[user_id]["status"] = "stopped"
-                    yield json.dumps({"type": "stopped"}) + "\n"
-                    return
+    # =========================
+    # 🔥 MODE SWITCH
+    # =========================
 
-                story = row['story']
+            if mode == "similarity":
+                all_stories = sampled_df['story'].tolist()
                 try:
-                    start_t = time.time()
-                    raw_response, status_code = classify(backend_model, story, technique)
-                    latency = round(time.time() - start_t, 2)
-
-                    if status_code != 200:
-                        res = {"classification": "Error", "category": None, "latency": latency, "error": raw_response}
-                    else:
-                        res = parse_backend_response(raw_response, model, strategy, latency)
-                        batch_results_storage.append(res)
-
-                        # ORM insert for batch result — isolated try/except so a
-                        # DB error (e.g. sequence mismatch) doesn't kill the session
+                    groups, labels = group_requirements(all_stories)
+                except Exception:
+                    groups = [all_stories]  # fallback
+                for group_id, group in enumerate(groups):
+                    yield json.dumps({
+                        "type": "group_start",
+                        "group_id": group_id,
+                        "size": len(group),
+                        "processed": processed
+                        }) + "\n"
+                    for story in group:
                         try:
+                            res = get_cached_or_compute(
+                                story,
+                                model,
+                                strategy,
+                                backend_model,
+                                technique
+                                )
+
+                            if "error" in res:
+                                res = {
+                                    "classification": "Error",
+                                    "category": None,
+                                    "latency": res.get("latency", 0),
+                                    "error": res["error"]
+                                    }
+                                    
                             result_row = BatchResult(
                                 batch_run_id=batch_run_id,
                                 user_id=user_id,
@@ -478,51 +595,121 @@ def batch():
                                 model=model,
                                 classification=res["classification"],
                                 category=res.get("category"),
-                                latency=res.get("latency")
-                            )
+                                latency=res.get("latency"),
+                                confidence=res.get("confidence")
+                                )
                             db.session.add(result_row)
                             db.session.commit()
-                            res["id"] = result_row.id  # expose DB id to the stream
-                        except Exception as db_err:
-                            db.session.rollback()  # prevents poisoned session
-                            print(f"[WARN] BatchResult DB insert failed (story skipped in DB): {db_err}")
-                            # Classification result is still yielded to the frontend
-
-                except Exception as e:
-                    res = {"classification": "Error", "category": None, "latency": 0.0, "error": str(e)}
-
-                if res.get("classification") == "FR":
-                    fr_count += 1
-                elif res.get("classification") == "NFR":
-                    nfr_count += 1
-                    cat = res.get("category")
-                    if cat:
-                        for c in CATEGORIES:
-                            if c.lower() in cat.lower():
-                                category_counts[c] += 1
-                                break
-
-                total_time += res.get("latency", 0)
-                processed += 1
-
-                # Update global progress store
-                with _batch_progress_lock:
-                    if user_id in _batch_progress:
-                        _batch_progress[user_id]["processed"] = processed
-
-                yield json.dumps({
-                    "type": "result",
-                    "story": story,
-                    "result": res,
-                    "current_stats": {
-                        "total": processed,
-                        "fr_count": fr_count,
-                        "nfr_count": nfr_count,
-                        "avg_time": round(total_time / processed, 2),
-                        "category_counts": category_counts
-                    }
-                }) + "\n"
-
+                            res["id"] = None  # will be available after commit
+                        except Exception as e:
+                            res = {
+                                "classification": "Error",
+                                "category": None,
+                                "latency": 0.0,
+                                "error": str(e)
+                                }
+                        # Stats
+                        if res.get("classification") == "FR":
+                            fr_count += 1
+                        elif res.get("classification") == "NFR":
+                            nfr_count += 1
+                            cat = res.get("category")
+                            if cat:
+                                for c in CATEGORIES:
+                                    if c.lower() in cat.lower():
+                                        category_counts[c] += 1
+                                        break
+                        total_time += res.get("latency", 0)
+                        processed += 1
+                        with _batch_progress_lock:
+                            if user_id in _batch_progress:
+                                _batch_progress[user_id]["processed"] = processed
+                        yield json.dumps({
+                            "type": "result",
+                            "group_id": group_id,
+                            "story": story,
+                            "result": res,
+                            "current_stats": {
+                                "total": processed,
+                                "fr_count": fr_count,
+                                "nfr_count": nfr_count,
+                                "avg_time": round(total_time / processed, 2) if processed else 0,
+                                "category_counts": category_counts
+                                }
+                        }) + "\n"
+                    # ✅ group end marker
+                    yield json.dumps({
+                        "type": "group_end",
+                        "group_id": group_id
+                        }) + "\n"
+                    # ✅ commit once
+                    db.session.commit()
+            else:
+                # =========================
+                # # ✅ EXISTING NORMAL FLOW (UNCHANGED)
+                # =========================
+                for _, row in sampled_df.iterrows():
+                    story = row['story']
+                    try:
+                        res = get_cached_or_compute(
+                            story,
+                            model,
+                            strategy,
+                            backend_model,
+                            technique
+                            )
+                        if "error" in res:
+                            res = {
+                                "classification": "Error",
+                                "category": None,
+                                "latency": res.get("latency", 0),
+                                "error": res["error"]
+                                }
+                        result_row = BatchResult(
+                            batch_run_id=batch_run_id,
+                            user_id=user_id,
+                            story=story,
+                            model=model,
+                            classification=res["classification"],
+                            category=res.get("category"),
+                            latency=res.get("latency"),
+                            confidence=res.get("confidence")
+                            )
+                        db.session.add(result_row)
+                        db.session.commit()
+                        res["id"] = result_row.id
+                    except Exception as e:
+                        res = {"classification": "Error", "category": None, "latency": 0.0, "error": str(e)}
+                    if res.get("classification") == "FR":
+                        fr_count += 1
+                    elif res.get("classification") == "NFR":
+                        nfr_count += 1
+                        cat = res.get("category")
+                        if cat:
+                            for c in CATEGORIES:
+                                if c.lower() in cat.lower():
+                                    category_counts[c] += 1
+                                    break
+                    total_time += res.get("latency", 0)
+                    processed += 1
+                    with _batch_progress_lock:
+                        if user_id in _batch_progress:
+                            _batch_progress[user_id]["processed"] = processed
+                    yield json.dumps({
+                        "type": "result",
+                        "story": story,
+                        "result": res,
+                        "current_stats": {
+                            "total": processed,
+                            "fr_count": fr_count,
+                            "nfr_count": nfr_count,
+                            "avg_time": round(total_time / processed, 2) if processed else 0,
+                            "category_counts": category_counts
+                            }
+                    }) + "\n"
+            # =========================
+            # # FINAL SUMMARY
+            # # =========================
             yield json.dumps({
                 "type": "summary",
                 "summary": {
@@ -531,8 +718,10 @@ def batch():
                     "nfr_count": nfr_count,
                     "avg_time": round(total_time / processed, 2) if processed else 0,
                     "category_counts": category_counts
-                }
-            }) + "\n"
+                    }
+                }) + "\n"
+
+
 
             # Mark done so global progress bar knows to stop
             with _batch_progress_lock:
@@ -637,6 +826,29 @@ def analytics_data():
 
     return jsonify({"total": total, "fr": fr, "nfr": nfr, "categories": categories, "latencies": latencies})
 
+@app.route("/api/calibration")
+@login_required
+def calibration_data():
+
+    results = BatchResult.query.filter(
+        BatchResult.true_label.isnot(None),
+        BatchResult.confidence.isnot(None)
+    ).all()
+
+    if not results:
+        return jsonify([])
+
+    data = []
+
+    for r in results:
+        is_correct = 1 if r.classification == r.true_label else 0
+
+        data.append({
+            "confidence": r.confidence,
+            "correct": is_correct
+        })
+
+    return jsonify(data)
 
 @app.route("/api/reset_batch", methods=["POST"])
 @login_required
@@ -645,7 +857,46 @@ def reset_batch():
     batch_results_storage = []
     return jsonify({"status": "cleared"})
 
+# =========================
+#Similarity Based Grouping
+#=========================
+@app.route('/api/grouping')
+@login_required
+def run_grouping():
+    try:
+        batch_size = request.args.get("batch_size", type=int)  # NEW
 
+        nfr_requirements = [
+            r.story for r in BatchResult.query.filter_by(
+                user_id=current_user.id,
+                classification="NFR"
+            ).all()
+        ]
+
+        if not nfr_requirements:
+            return jsonify({"groups": [], "message": "No NFRs found"})
+
+        # =========================
+        # 🔥 NEW LOGIC
+        # =========================
+        if batch_size:
+            groups, labels = group_requirements(
+                nfr_requirements,
+                batch_size=batch_size
+            )
+        else:
+            groups, labels = group_requirements(nfr_requirements)
+
+        return jsonify({
+            "groups": groups,
+            "labels": labels,
+            "count": len(nfr_requirements),
+            "batch_mode": True if batch_size else False
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
 @app.route("/api/compare_prompting")
 @login_required
 def compare_prompting():
@@ -766,7 +1017,7 @@ def usage_data():
 def evaluate():
     return render_template('evaluate.html', page='evaluate')
 
-
+print("✅ /api/evaluate HIT")
 @app.route('/api/evaluate', methods=['POST'])
 @login_required
 def run_evaluation():
@@ -845,7 +1096,6 @@ def run_evaluation():
             reason      = str(e)
             pred_type   = ''
             latency     = 0
-
         correct = (true_label == pred_label)
         y_true.append(true_label)
         y_pred.append(pred_label)
@@ -861,6 +1111,19 @@ def run_evaluation():
             "pred_type":  pred_type,
             "latency":    latency
         })
+        # ✅ SAVE TO DATABASE FOR CALIBRATION
+        result_row = BatchResult(
+            user_id=current_user.id,
+            story=story,
+            model=model,
+            classification=pred_label,
+            category=pred_type,
+            latency=latency,
+            confidence=confidence,
+            true_label=true_label   # 🔥 THIS IS THE KEY
+            )
+        db.session.add(result_row)
+    db.session.commit()
 
     # --- Filter out errors for metric computation ---
     valid_pairs = [(t, p) for t, p in zip(y_true, y_pred) if p != 'Error']
@@ -1962,4 +2225,4 @@ def _anno_dict(a):
 # Run
 # =========================
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=5000,use_reloader=False)

@@ -14,6 +14,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 # ==========================
 # DOMAIN CONTEXT TEMPLATES
 # ==========================
+
 DOMAIN_CONTEXTS = {
     "Software Application": {
         "system": "Software system handling user accounts and transactions",
@@ -42,6 +43,7 @@ DOMAIN_LIST = list(DOMAIN_CONTEXTS.keys())
 # ==========================
 # SYSTEM CONTEXT BUILDER
 # ==========================
+
 def create_system_context(domain: str, stakeholders: str, system_desc: str) -> str:
     return f"""System Domain: {domain}
 
@@ -63,6 +65,7 @@ The system must ensure:
 # ==========================
 # TF-IDF CONTEXT BUILDER
 # ==========================
+
 def build_tfidf_context(df, index, tfidf_matrix, threshold=0.1, window_size=5):
     """
     Returns (previous_context, next_context) strings based on
@@ -89,6 +92,7 @@ def build_tfidf_context(df, index, tfidf_matrix, threshold=0.1, window_size=5):
 # ==========================
 # CONTEXT PROMPT BUILDER
 # ==========================
+
 def create_context_prompt(
     previous_context: str,
     current_req: str,
@@ -167,6 +171,7 @@ Confidence: <number between 0 and 100>
 # ==========================
 # RESPONSE EXTRACTION
 # ==========================
+
 def extract_is_nfr(response: str) -> str:
     """Returns 'Yes' or 'No'"""
     if not response:
@@ -225,6 +230,7 @@ def extract_rqi_score(response: str):
 # ==========================
 # RQI - RULE-BASED
 # ==========================
+
 def calculate_rqi_rule_based(requirement: str) -> int:
     if not requirement or not isinstance(requirement, str):
         return 0
@@ -269,6 +275,7 @@ def calculate_rqi_rule_based(requirement: str) -> int:
 # ==========================
 # RQI - LLM-BASED
 # ==========================
+
 def calculate_rqi_llm(requirement: str, model_fns: list) -> float:
     prompt = f"""Evaluate the quality of this software requirement.
 
@@ -294,6 +301,7 @@ RQI: 7.5
 # ==========================
 # COMBINED RQI
 # ==========================
+
 def calculate_combined_rqi(requirement: str, model_fns: list = None) -> dict:
     rule_score = calculate_rqi_rule_based(requirement)
     llm_score  = None
@@ -328,6 +336,7 @@ def calculate_combined_rqi(requirement: str, model_fns: list = None) -> dict:
 # ==========================
 # CRITERIA BREAKDOWN
 # ==========================
+
 def get_rqi_criteria_breakdown(requirement: str) -> list:
     req = requirement.lower().strip()
 

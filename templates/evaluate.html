@@ -334,24 +334,43 @@ function hideEvalError() {
 // ── Run Evaluation ──────────────────────────────────────────
 async function runEvaluation() {
     hideEvalError();
-    if (!evalFile) { showEvalError("Please upload a labeled CSV file first."); return; }
+
+    if (!evalFile) {
+        showEvalError("Please upload a labeled CSV file first.");
+        return;
+    }
 
     const model    = document.getElementById('evalModel').value;
     const strategy = document.getElementById('evalStrategy').value;
 
-    // Show loading
+    // UI state
     document.getElementById('evalResults').classList.add('hidden');
     document.getElementById('evalLoading').classList.remove('hidden');
     document.getElementById('evalRunBtn').disabled = true;
 
     const formData = new FormData();
-    formData.append('file',     evalFile);
-    formData.append('model',    model);
+    formData.append('file', evalFile);
+    formData.append('model', model);
     formData.append('strategy', strategy);
 
     try {
-        const resp = await fetch('/api/evaluate', { method: 'POST', body: formData });
-        const data = await resp.json();
+        const resp = await fetch('/api/evaluate', {
+            method: 'POST',
+            body: formData
+        });
+
+        let data;
+
+        // 🔥 SAFE JSON PARSE
+        try {
+            data = await resp.json();
+        } catch (e) {
+            const text = await resp.text();
+            console.error("❌ Non-JSON response:", text);
+
+            showEvalError("Server returned invalid response (likely login expired or backend error).");
+            return;
+        }
 
         if (!resp.ok || data.error) {
             showEvalError(data.error || "Evaluation failed.");
@@ -362,6 +381,7 @@ async function runEvaluation() {
         renderResults(data);
 
     } catch (err) {
+        console.error("❌ Fetch error:", err);
         showEvalError("Network error: " + err.message);
     } finally {
         document.getElementById('evalLoading').classList.add('hidden');
