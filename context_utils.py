@@ -1,4 +1,16 @@
+"""
+context_utils.py
+----------------
+Shared utilities for domain-context-aware classification and RQI scoring.
+Used by:
+  - app.py
+  - context_based_evaluation.py
+"""
+
 import re
+
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
 DOMAIN_CONTEXTS = {
     "Software Application": {
@@ -43,6 +55,33 @@ The system must ensure:
 - Usability
 - Compliance
 - Maintainability"""
+
+
+def build_tfidf_context(df, index, tfidf_matrix, threshold=0.1, window_size=5):
+    """
+    Return neighboring requirement context using TF-IDF cosine similarity.
+
+    The function scans a configurable window around the current row and keeps
+    only neighbors whose similarity score meets the threshold.
+    """
+    prev_reqs = []
+    next_reqs = []
+    current_vector = tfidf_matrix[index]
+
+    for i in range(1, window_size + 1):
+        if index - i >= 0:
+            sim = cosine_similarity(current_vector, tfidf_matrix[index - i : index - i + 1])[0][0]
+            if sim >= threshold:
+                prev_reqs.append(df.iloc[index - i]["story"])
+
+        if index + i < len(df):
+            sim = cosine_similarity(current_vector, tfidf_matrix[index + i : index + i + 1])[0][0]
+            if sim >= threshold:
+                next_reqs.append(df.iloc[index + i]["story"])
+
+    previous_context = "\n".join(prev_reqs[::-1]) if prev_reqs else "None"
+    next_context = "\n".join(next_reqs) if next_reqs else "None"
+    return previous_context, next_context
 
 
 def create_context_prompt(
@@ -120,6 +159,7 @@ Respond ONLY in this exact format with no extra text:
 Is NFR: Yes or No
 NFR Type: <Performance | Security | Usability | Reliability | Scalability | Availability | Maintainability | Privacy | Safety | Compliance | None>
 Reason: <one sentence>
+Confidence: <number between 0 and 100>
 """
 
 
@@ -396,6 +436,9 @@ __all__ = [
     "DOMAIN_CONTEXTS",
     "DOMAIN_LIST",
     "create_system_context",
+    "TfidfVectorizer",
+    "cosine_similarity",
+    "build_tfidf_context",
     "create_context_prompt",
     "extract_is_nfr",
     "extract_nfr_type",
