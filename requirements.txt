@@ -1,7 +1,15 @@
-# Add these to your requirements.txt
-flask
-flask-sqlalchemy
-flask-login
-authlib
+Flask
+Flask-SQLAlchemy
+Flask-Login
+Authlib
+SQLAlchemy
+pandas
+scikit-learn
+seaborn
 psycopg2-binary
 python-dotenv
+requests
+groq
+google-generativeai
+cohere
+anthropic
