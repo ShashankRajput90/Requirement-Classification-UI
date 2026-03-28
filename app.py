@@ -286,7 +286,8 @@ def get_cached_or_compute(story, model, strategy, backend_model, technique):
     latency = round(time.time() - start_t, 2)
 
     if status_code != 200:
-        return {"error": raw_response}
+        error_msg = raw_response.get("error", str(raw_response)) if isinstance(raw_response, dict) else str(raw_response)
+        return {"error": error_msg}
 
     result = parse_backend_response(raw_response, model, strategy, latency)
 
@@ -1027,6 +1028,8 @@ def run_evaluation():
     file     = request.files['file']
     model    = request.form.get('model', 'ChatGPT')
     strategy = request.form.get('strategy', 'Zero-shot')
+    limit    = int(request.form.get('limit', 10))  # Retrieve the limit parameter
+    print(f"Limit received: {limit}")  # Debug print
 
     model_map    = MODEL_MAP
     strategy_map = {**STRATEGY_MAP, "Role-Based": "role_based", "ReAct": "react"}
@@ -1063,6 +1066,10 @@ def run_evaluation():
 
     df['true_label'] = df['label'].apply(normalize_label)
     has_type_col     = 'nfr_type' in df.columns
+
+    # Apply the limit to the number of stories to process
+    df = df.head(limit)
+    print(f"Number of stories to process: {len(df)}")  # Debug print
 
     # --- Run classification for each story ---
     y_true, y_pred, details = [], [], []
