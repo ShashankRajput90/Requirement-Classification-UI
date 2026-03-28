@@ -23,6 +23,7 @@ from code_integration import classify
 from models import db, User, BatchRun, BatchResult, RequirementHistory, Feedback, Annotation
 from keyword_highlighter import highlight_keywords
 import random
+from ambiguity_detector import detect_ambiguity, report_to_dict
 # =========================
 # Adaptive Cache System
 # =========================
@@ -2202,6 +2203,15 @@ def export_annotations():
         .order_by(Annotation.annotated_at.asc())
         .all()
     )
+    # ── Auto-promote status to 'exported' ──────────────────────────────
+    changed = False
+    for a in items:
+        if a.status != 'exported':
+            a.status = 'exported'
+            changed  = True
+    if changed:
+        db.session.commit()
+    # ────────────────────────────────────────────────────────────────────
     return jsonify({'rows': [_anno_dict(a) for a in items]})
  
  
@@ -2221,6 +2231,61 @@ def _anno_dict(a):
         'status':            a.status,
         'annotated_at':      a.annotated_at.isoformat() if a.annotated_at else None,
     }
+    
+@app.route('/api/detect_ambiguity', methods=['POST'])
+@login_required
+def detect_ambiguity_route():
+    """
+    Universal ambiguity detection endpoint — used by every page.
+ 
+    Single mode:
+        POST  { "requirement": "The system should be fast." }
+        →     { ambiguity_score, quality_label, warnings, ... }
+ 
+    Batch mode (CSV upload pages):
+        POST  { "requirements": ["req1", "req2", ...] }
+        →     { summary: {...}, results: [...] }
+    """
+    from ambiguity_detector import detect_ambiguity, report_to_dict
+ 
+    data = request.get_json(silent=True) or {}
+ 
+    # ── Single requirement ──────────────────────────────────
+    if "requirement" in data:
+        req = (data.get("requirement") or "").strip()
+        if not req:
+            return jsonify({"error": "requirement is required"}), 400
+        return jsonify(report_to_dict(detect_ambiguity(req)))
+ 
+    # ── Batch requirements ──────────────────────────────────
+    if "requirements" in data:
+        reqs = data.get("requirements")
+        if not isinstance(reqs, list) or len(reqs) == 0:
+            return jsonify({"error": "requirements must be a non-empty list"}), 400
+        if len(reqs) > 500:
+            return jsonify({"error": "Maximum 500 requirements per batch call"}), 400
+ 
+        results = [report_to_dict(detect_ambiguity((r or "").strip())) for r in reqs]
+ 
+        total        = len(results)
+        ambiguous    = sum(1 for r in results if r["is_ambiguous"])
+        avg_score    = round(sum(r["ambiguity_score"] for r in results) / total, 1) if total else 0
+        label_counts: dict = {}
+        for r in results:
+            label_counts[r["quality_label"]] = label_counts.get(r["quality_label"], 0) + 1
+ 
+        return jsonify({
+            "summary": {
+                "total":        total,
+                "ambiguous":    ambiguous,
+                "clean":        total - ambiguous,
+                "avg_score":    avg_score,
+                "label_counts": label_counts,
+            },
+            "results": results,
+        })
+ 
+    return jsonify({"error": "Provide 'requirement' or 'requirements' in the request body"}), 400
 # =========================
 # Run
 # =========================

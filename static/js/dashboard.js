@@ -1,8 +1,3 @@
-// dashboard.js
-
-// --- Global Config ---
-// In a real app, these would come from the sidebar state
-
 function getSelectedModel() {
   return document.getElementById("modelSelect")
     ? document.getElementById("modelSelect").value
@@ -453,12 +448,56 @@ function handleFileSelect(file) {
     uploadPrompt.classList.add("opacity-0", "pointer-events-none");
   if (fileActionBar) fileActionBar.classList.remove("hidden");
 
-  // Parse CSV to get total rows
+  // Parse CSV to get total rows AND populate window.batchStories for ambiguity scan
   const reader = new FileReader();
   reader.onload = function (e) {
     const text = e.target.result;
     const lines = text.split("\n").filter((r) => r.trim());
     const storyCount = Math.max(0, lines.length - 1);
+
+    // ── Parse CSV columns and build window.batchStories ──────────
+    function parseCSVLine(line) {
+      const result = [];
+      let startValueIndex = 0;
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        if (line[i] === '"') {
+          if (i + 1 < line.length && line[i + 1] === '"') { i++; }
+          else { inQuotes = !inQuotes; }
+        } else if (line[i] === "," && !inQuotes) {
+          let val = line.substring(startValueIndex, i).trim();
+          if (val.startsWith('"') && val.endsWith('"')) val = val.slice(1,-1).replace(/""/g,'"');
+          result.push(val);
+          startValueIndex = i + 1;
+        }
+      }
+      let val = line.substring(startValueIndex).trim();
+      if (val.startsWith('"') && val.endsWith('"')) val = val.slice(1,-1).replace(/""/g,'"');
+      result.push(val);
+      return result;
+    }
+
+    if (lines.length > 1) {
+      const headers = parseCSVLine(lines[0]).map(h => h.toLowerCase().trim());
+      // Find the user_story column index; fall back to first column
+      const storyColIdx = headers.findIndex(h =>
+        h === "user_story" || h === "story" || h === "requirement" || h === "text"
+      );
+      const colIdx = storyColIdx >= 0 ? storyColIdx : 0;
+
+      const rows = lines.slice(1).map(line => {
+        const cells = parseCSVLine(line);
+        return headers.reduce((obj, h, i) => { obj[h] = cells[i] || ""; return obj; }, {});
+      });
+
+      // Expose both formats so batch.html script can find stories
+      window.uploadedCSVRows = rows;
+      window.batchStories = rows.map(r => r[headers[colIdx]] || Object.values(r)[0] || "").filter(Boolean);
+    } else {
+      window.uploadedCSVRows = [];
+      window.batchStories = [];
+    }
+    // ─────────────────────────────────────────────────────────────
 
     const simText     = document.getElementById("simulateContainerText");
     const simSlider   = document.getElementById("simulateContainerSlider");
@@ -488,6 +527,8 @@ function removeFile() {
   if (fileInput)    fileInput.value = "";
   if (uploadPrompt) uploadPrompt.classList.remove("opacity-0", "pointer-events-none");
   if (fileActionBar) fileActionBar.classList.add("hidden");
+  window.batchStories = [];
+  window.uploadedCSVRows = [];
 
   const simText     = document.getElementById("simulateContainerText");
   const simSlider   = document.getElementById("simulateContainerSlider");
