@@ -458,9 +458,9 @@
     </div>
 </div>
 
+=======
+>>>>>>> 9d19c37f567bcabdff90857bcf22c8d561f231ae
 <script>
-// Domain metadata passed from Flask
-
 
 // Simpler approach — hardcode in JS since it matches context_utils.py
 const DOMAINS = {
@@ -497,6 +497,16 @@ function updateDomainPreview() {
 // Run on page load
 updateDomainPreview();
 
+// ── Utility Functions ──────────────────────────────────────────
+function isValidUserStory(story) {
+    const lower = story.toLowerCase().trim();
+    // Must start with "as a"
+    if (!lower.startsWith('as a')) return false;
+    // Must contain "i want" or "i need"
+    if (!lower.includes('i want') && !lower.includes('i need')) return false;
+    return true;
+}
+
 // ── Classify with Context ────────────────────────────────────
 async function runContextClassify() {
     const story    = document.getElementById('contextStoryInput').value.trim();
@@ -507,6 +517,9 @@ async function runContextClassify() {
     hideContextError();
 
     if (!story) { showContextError("Please enter a requirement."); return; }
+
+    // Validate user story format
+    if (!isValidUserStory(story)) { showContextError("Please enter a valid user story (e.g., 'As a user, I want...')."); return; }
 
     document.getElementById('contextPlaceholder').classList.add('hidden');
     document.getElementById('contextResultCard').classList.add('hidden');
@@ -536,6 +549,9 @@ async function runContextClassify() {
 async function runRQIOnly() {
     const story = document.getElementById('contextStoryInput').value.trim();
     if (!story) { showContextError("Please enter a requirement."); return; }
+
+    // Validate user story format
+    if (!isValidUserStory(story)) { showContextError("Please enter a valid user story (e.g., 'As a user, I want...')."); return; }
 
     hideContextError();
     document.getElementById('contextPlaceholder').classList.add('hidden');

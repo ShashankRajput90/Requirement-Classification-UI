@@ -1,3 +1,27 @@
+<<<<<<< HEAD
+=======
+// dashboard.js
+
+// --- Global Config ---
+// In a real app, these would come from the sidebar state
+
+function isValidUserStory(story) {
+  const lower = story.toLowerCase().trim();
+  // Must start with "as a"
+  if (!lower.startsWith('as a')) return false;
+  // Must contain "i want" or "i need"
+  if (!lower.includes('i want') && !lower.includes('i need')) return false;
+  // Must have content after "i want" or "i need"
+  const wantIndex = lower.indexOf('i want');
+  const needIndex = lower.indexOf('i need');
+  const index = wantIndex !== -1 ? wantIndex : needIndex;
+  const phrase = wantIndex !== -1 ? 'i want' : 'i need';
+  const after = lower.substring(index + phrase.length).trim();
+  if (after.length < 3) return false; // Require at least 3 characters after the phrase
+  return true;
+}
+
+>>>>>>> 9d19c37f567bcabdff90857bcf22c8d561f231ae
 function getSelectedModel() {
   return document.getElementById("modelSelect")
     ? document.getElementById("modelSelect").value
@@ -35,6 +59,13 @@ async function classifyStory() {
     alert("Please enter a user story.");
     return;
   }
+
+  // Validate user story format
+  if (!isValidUserStory(input.value.trim())) {
+    showError("Please enter a valid user story (e.g., 'As a user, I want...').");
+    return;
+  }
+
   clearError();
 
   // UI Updates
@@ -58,14 +89,12 @@ async function classifyStory() {
     });
     const data = await response.json();
     window.currentResultId = data.result_id;
-    // if (response.status === 429) {
-    //   alert(data.error); // Shows "Gemini API limit exceeded. Please check your quota..."
-    //   return;
-    // }
 
     // ✅ Also handle other errors
     if (!response.ok) {
-      showError(data.error || "An error occurred.");
+      // showError(data.error || "An error occurred.");
+      const errMsg = typeof data.error === 'object' ? (data.error.error || JSON.stringify(data.error)) : data.error;
+      showError(errMsg || "An error occurred.");
       return;
     }
 
@@ -1075,6 +1104,10 @@ async function runModelComparison() {
   // Basic Validation
   if (!storyInput.value.trim()) {
     showCompareError("Please enter a user story to compare.");
+    return;
+  }
+  if (!isValidUserStory(storyInput.value.trim())) {
+    showCompareError("Please enter a valid user story (e.g., 'As a user, I want...').");
     return;
   }
   if (checkboxes.length < 2) {

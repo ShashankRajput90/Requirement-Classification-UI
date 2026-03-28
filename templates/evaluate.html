@@ -1,3 +1,4 @@
+
 {% extends "base.html" %}
 
 {% block content %}
@@ -28,42 +29,76 @@
 
         <!-- Drop Zone -->
         <div id="evalDropZone"
-            class="border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-xl p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:border-blue-400 transition-colors relative"
+            class="glass-card rounded-2xl p-8 border-dashed border-2 border-gray-300 dark:border-slate-600 hover:border-blue-500 transition-colors cursor-pointer group relative bg-white/50 dark:bg-slate-800/50"
             onclick="document.getElementById('evalFileInput').click()">
-            <div id="evalUploadPrompt">
-                <svg class="w-10 h-10 text-blue-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
-                </svg>
-                <p class="font-medium text-gray-700 dark:text-white">Drop your labeled CSV here or click to browse</p>
-                <p class="text-sm text-gray-400 mt-1">Must contain <code>user_story</code> and <code>label</code> columns</p>
+
+            <!-- Upload Prompt (default) -->
+            <div id="evalUploadPrompt" class="flex flex-col items-center justify-center space-y-4 transition-all">
+                <div class="p-4 bg-gray-100 dark:bg-slate-800 rounded-full group-hover:bg-blue-500/20 transition-colors">
+                    <svg class="w-8 h-8 text-blue-500 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                    </svg>
+                </div>
+                <div class="text-center">
+                    <p class="text-lg font-medium text-gray-900 dark:text-white">Drop your labeled CSV here or click to browse</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Must contain <code>user_story</code> and <code>label</code> columns</p>
+                </div>
             </div>
-            <div id="evalFileInfo" class="hidden items-center gap-3">
-                <svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
-                <span id="evalFileName" class="font-medium text-gray-900 dark:text-white"></span>
-                <button onclick="clearEvalFile(event)" class="text-red-400 hover:text-red-600 text-xs underline ml-2">Remove</button>
+
+            <!-- File Action Bar (shown after upload) -->
+            <div id="evalFileActionBar" class="hidden flex-col items-center space-y-5 w-full py-6">
+                <div class="flex items-center gap-3 bg-white dark:bg-slate-800 px-4 py-2 rounded-xl border border-gray-200 dark:border-slate-600 shadow-sm">
+                    <div class="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                        </svg>
+                    </div>
+                    <span id="evalFileName" class="text-gray-900 dark:text-white font-semibold">batch_1.csv</span>
+                    <span id="evalRowCount" class="text-xs text-gray-400"></span>
+                </div>
+                
+                <div class="flex items-center gap-3">
+                    <button id="evalPreviewBtn" onclick="openEvalPreview(event)"
+                        class="flex items-center gap-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 px-5 py-2 rounded-lg transition-colors border border-blue-500/20">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                        </svg>
+                        <span class="text-sm font-medium">Preview</span>
+                    </button>
+                    <button onclick="clearEvalFile(event)"
+                        class="flex items-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 px-5 py-2 rounded-lg transition-colors border border-red-500/20">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                        <span class="text-sm font-medium">Remove</span>
+                    </button>
+                </div>
             </div>
+
             <input type="file" id="evalFileInput" class="hidden" accept=".csv">
         </div>
 
-        <!-- ★ AMBIGUITY SCAN BUTTON — appears after file selected -->
-        <div id="evalAmbiRow" class="hidden flex items-center justify-between p-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40">
-            <div class="flex items-center gap-2 text-sm text-amber-700 dark:text-amber-300">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
-                <span class="font-medium">Scan dataset for ambiguous requirements before evaluation</span>
+        <!-- Stories Slider (shown after file upload) -->
+        <div id="evalSliderSection" class="hidden border border-gray-200 dark:border-slate-700 rounded-xl p-4 bg-gray-50 dark:bg-slate-900/30">
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div class="mb-2 sm:mb-0">
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Stories to Evaluate</label>
+                    <p class="text-xs text-gray-400 mt-0.5">Drag to select how many rows from your CSV to process</p>
+                </div>
+                <div class="flex flex-row items-center gap-2 w-full sm:w-auto">
+                    <input type="range" id="evalVolumeSlider" min="2" max="50" value="10"
+                        class="flex-1 accent-green-500 min-w-0"
+                        oninput="updateEvalSliderLabel(this.value)">
+                    <div class="flex flex-col items-center min-w-[52px] ml-2">
+                        <span id="evalVolumeValue" class="text-lg font-bold text-gray-900 dark:text-white font-mono">10</span>
+                        <span id="evalVolumeTotal" class="text-xs text-gray-400">/ 50 rows</span>
+                    </div>
+                </div>
             </div>
-            <button onclick="runEvalAmbiScan()"
-                class="flex items-center gap-2 text-xs font-bold px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-white transition shadow">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z"/></svg>
-                Scan Ambiguity
-            </button>
         </div>
 
-        <!-- ★ AMBIGUITY PANEL for evaluate — injected here -->
-        <div id="evalAmbiContainer"></div>
-
-        <!-- Model + Strategy -->
+        <!-- Model + Strategy selectors -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
                 <label class="text-sm font-medium text-gray-700 dark:text-gray-300">AI Model</label>
@@ -102,6 +137,40 @@
         </div>
     </div>
 
+    <!-- Preview Modal -->
+    <div id="evalPreviewModal"
+        class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+        <div class="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-2xl w-full max-w-4xl max-h-[80vh] flex flex-col shadow-2xl">
+            <div class="p-5 border-b border-gray-200 dark:border-slate-800 flex justify-between items-center">
+                <div>
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-white">CSV Preview</h3>
+                    <p id="evalPreviewSubtitle" class="text-xs text-gray-400 mt-0.5"></p>
+                </div>
+                <button onclick="closeEvalPreview()"
+                    class="text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="overflow-auto flex-1">
+                <table class="w-full text-left text-sm text-gray-700 dark:text-gray-300">
+                    <thead class="sticky top-0 bg-gray-100 dark:bg-slate-800 text-xs uppercase font-semibold text-gray-500 dark:text-gray-400 z-10">
+                        <tr id="evalPreviewHeaderRow"></tr>
+                    </thead>
+                    <tbody id="evalPreviewBody" class="divide-y divide-gray-100 dark:divide-slate-800"></tbody>
+                </table>
+            </div>
+            <div class="p-4 border-t border-gray-200 dark:border-slate-800 flex justify-between items-center">
+                <p class="text-xs text-gray-400">Showing first <strong id="evalPreviewShownCount">—</strong> rows of <strong id="evalPreviewTotalCount">—</strong></p>
+                <button onclick="closeEvalPreview()"
+                    class="text-sm text-gray-500 hover:text-gray-900 dark:hover:text-white px-4 py-1.5 rounded-lg border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Loading -->
     <div id="evalLoading" class="hidden flex flex-col items-center justify-center py-16">
         <div class="relative w-16 h-16 mb-4">
@@ -109,7 +178,7 @@
             <div class="absolute inset-0 border-4 border-green-500 rounded-full border-t-transparent animate-spin"></div>
         </div>
         <p class="text-gray-400 animate-pulse">Classifying stories and computing metrics...</p>
-        <p class="text-gray-500 text-sm mt-1">This may take a minute depending on dataset size.</p>
+        <p id="evalLoadingDetail" class="text-gray-500 text-sm mt-1">This may take a minute depending on dataset size.</p>
     </div>
 
     <!-- Results Section -->
@@ -170,7 +239,10 @@
                     <div class="flex justify-between text-sm mb-1"><span class="text-gray-500">Avg confidence on ❌ wrong predictions</span><span id="confIncorrect" class="font-bold text-red-500">-</span></div>
                     <div class="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2.5"><div id="confIncorrectBar" class="bg-red-500 h-2.5 rounded-full transition-all" style="width:0%"></div></div>
                 </div>
-                <p class="text-xs text-gray-400 mt-2">A well-calibrated model scores high confidence on correct answers and lower when wrong.</p>
+                <p class="text-xs text-gray-400 mt-2">
+                    A well-calibrated model scores high confidence on correct answers
+                    and lower confidence when it's wrong.
+                </p>
                 <div id="typeAccuracyBlock" class="hidden mt-2 p-3 rounded-lg bg-gray-100 dark:bg-slate-700/50">
                     <p class="text-xs text-gray-500 uppercase font-bold mb-1">NFR Type Accuracy</p>
                     <p id="typeAccuracyVal" class="text-xl font-bold text-blue-500">-</p>
@@ -223,9 +295,44 @@
 </div>
 
 <script>
-let evalFile = null;
-let evalData = null;
-let evalParsedStories = [];   // ★ stores story strings for ambiguity scan
+let evalFile    = null;
+let evalData    = null;
+let evalParsed  = [];   // parsed CSV rows [{col: val, ...}]
+let evalHeaders = [];   // CSV column names
+
+// ── CSV Parser ──────────────────────────────────────────────
+function parseCSV(text) {
+    const lines = text.trim().split(/\r?\n/);
+    if (lines.length < 2) return { headers: [], rows: [] };
+
+    // Handle quoted fields
+    function splitLine(line) {
+        const result = [];
+        let cur = '', inQuote = false;
+        for (let i = 0; i < line.length; i++) {
+            const ch = line[i];
+            if (ch === '"') {
+                if (inQuote && line[i + 1] === '"') { cur += '"'; i++; }
+                else inQuote = !inQuote;
+            } else if (ch === ',' && !inQuote) {
+                result.push(cur.trim()); cur = '';
+            } else {
+                cur += ch;
+            }
+        }
+        result.push(cur.trim());
+        return result;
+    }
+
+    const headers = splitLine(lines[0]);
+    const rows = lines.slice(1).filter(l => l.trim()).map(line => {
+        const vals = splitLine(line);
+        const obj = {};
+        headers.forEach((h, i) => { obj[h] = vals[i] ?? ''; });
+        return obj;
+    });
+    return { headers, rows };
+}
 
 // ── File Handling ─────────────────────────────────────────────
 document.getElementById('evalFileInput').addEventListener('change', function () {
@@ -243,40 +350,42 @@ dropZone.addEventListener('drop', e => {
 
 function setEvalFile(file) {
     evalFile = file;
-    document.getElementById('evalUploadPrompt').classList.add('hidden');
-    const info = document.getElementById('evalFileInfo');
-    info.classList.remove('hidden');
-    info.classList.add('flex');
-    document.getElementById('evalFileName').textContent = file.name;
-
-    // ★ Parse stories for ambiguity scan
     const reader = new FileReader();
-    reader.onload = e => {
-        const lines = e.target.result.trim().split(/\r?\n/);
-        if (lines.length < 2) return;
-        const headers = lines[0].split(',').map(h => h.replace(/["']/g,'').trim().toLowerCase());
-        const storyCol = headers.findIndex(h => ['user_story','story','requirement','text'].includes(h));
-        if (storyCol === -1) return;
-        evalParsedStories = lines.slice(1).map(l => {
-            const vals = l.split(',');
-            return (vals[storyCol] || '').replace(/^"|"$/g,'').trim();
-        }).filter(Boolean);
+    reader.onload = function(e) {
+        const { headers, rows } = parseCSV(e.target.result);
+        evalHeaders = headers;
+        evalParsed  = rows;
 
-        // ★ Show the ambiguity scan row
-        const ambiRow = document.getElementById('evalAmbiRow');
-        ambiRow.classList.remove('hidden');
-        ambiRow.classList.add('flex');
+        // Update drop zone UI
+        document.getElementById('evalUploadPrompt').classList.add('hidden');
+        const bar = document.getElementById('evalFileActionBar');
+        bar.classList.remove('hidden');
+        bar.classList.add('flex');
+        document.getElementById('evalFileName').textContent = file.name;
+        document.getElementById('evalRowCount').textContent = `(${rows.length} rows)`;
+
+        // Configure slider
+        const max   = Math.min(50, rows.length);
+        const init  = Math.min(50, max);
+        const slider = document.getElementById('evalVolumeSlider');
+        slider.max   = max;
+        slider.value = init;
+        document.getElementById('evalSliderSection').classList.remove('hidden');
+        updateEvalSliderLabel(init);
     };
     reader.readAsText(file);
 }
 
 function clearEvalFile(e) {
-    e.stopPropagation();
-    evalFile = null;
-    evalParsedStories = [];
+    if (e) e.stopPropagation();
+    evalFile    = null;
+    evalParsed  = [];
+    evalHeaders = [];
     document.getElementById('evalFileInput').value = '';
-    document.getElementById('evalFileInfo').classList.add('hidden');
-    document.getElementById('evalFileInfo').classList.remove('flex');
+
+    const bar = document.getElementById('evalFileActionBar');
+    bar.classList.add('hidden');
+    bar.classList.remove('flex');
     document.getElementById('evalUploadPrompt').classList.remove('hidden');
     // ★ Hide ambiguity UI
     const ambiRow = document.getElementById('evalAmbiRow');
@@ -290,8 +399,67 @@ async function runEvalAmbiScan() {
     if (!evalParsedStories.length) { alert("No stories parsed yet."); return; }
     const container = document.getElementById("evalAmbiContainer");
     await Ambiguity.runBatchScan(evalParsedStories, container, "evalAmbiPanel");
+    document.getElementById('evalSliderSection').classList.add('hidden');
 }
 
+// ── Slider Logic ────────────────────────────────────────────
+function updateEvalSliderLabel(val) {
+    val = parseInt(val);
+    document.getElementById('evalVolumeValue').textContent = val;
+    document.getElementById('evalVolumeTotal').textContent = `/ ${evalParsed.length} rows`;
+}
+
+// ── Preview Modal ───────────────────────────────────────────
+function openEvalPreview(e) {
+    if (e) e.stopPropagation();
+    if (!evalParsed.length) return;
+
+    const PREVIEW_LIMIT = 20;
+    const shown = evalParsed.slice(0, PREVIEW_LIMIT);
+
+    // Header
+    const headerRow = document.getElementById('evalPreviewHeaderRow');
+    headerRow.innerHTML = evalHeaders.map(h =>
+        `<th class="px-4 py-3 whitespace-nowrap">${escapeHtml(h)}</th>`
+    ).join('');
+
+    // Body — highlight label column
+    const labelCol = evalHeaders.find(h => ['label', 'Label', 'is_nfr', 'type'].includes(h));
+    const tbody = document.getElementById('evalPreviewBody');
+    tbody.innerHTML = shown.map((row, idx) => {
+        const cells = evalHeaders.map(h => {
+            const val = row[h] ?? '';
+            if (h === labelCol) {
+                const v = val.toLowerCase();
+                const isNFR = ['yes', 'nfr', '1', 'non-functional', 'nonfunctional'].includes(v);
+                const badge = isNFR
+                    ? `<span class="px-2 py-0.5 rounded text-xs font-semibold bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400">${escapeHtml(val)}</span>`
+                    : `<span class="px-2 py-0.5 rounded text-xs font-semibold bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400">${escapeHtml(val)}</span>`;
+                return `<td class="px-4 py-2.5">${badge}</td>`;
+            }
+            return `<td class="px-4 py-2.5 max-w-xs"><p class="truncate" title="${escapeHtml(val)}">${escapeHtml(val)}</p></td>`;
+        }).join('');
+        const bg = idx % 2 === 0 ? '' : 'bg-gray-50 dark:bg-slate-800/40';
+        return `<tr class="${bg}">${cells}</tr>`;
+    }).join('');
+
+    document.getElementById('evalPreviewSubtitle').textContent = `${evalFile.name}`;
+    document.getElementById('evalPreviewShownCount').textContent = shown.length;
+    document.getElementById('evalPreviewTotalCount').textContent = evalParsed.length;
+
+    document.getElementById('evalPreviewModal').classList.remove('hidden');
+}
+
+function closeEvalPreview() {
+    document.getElementById('evalPreviewModal').classList.add('hidden');
+}
+
+// Close modal on backdrop click
+document.getElementById('evalPreviewModal').addEventListener('click', function(e) {
+    if (e.target === this) closeEvalPreview();
+});
+
+// ── Error Helpers ───────────────────────────────────────────
 function showEvalError(msg) {
     const el = document.getElementById('evalError');
     document.getElementById('evalErrorText').textContent = msg;
@@ -307,27 +475,48 @@ function hideEvalError() {
 // ── Run Evaluation ────────────────────────────────────────────
 async function runEvaluation() {
     hideEvalError();
-    if (!evalFile) { showEvalError("Please upload a labeled CSV file first."); return; }
+
+    if (!evalFile) {
+        showEvalError("Please upload a labeled CSV file first.");
+        return;
+    }
+
+    const limit    = parseInt(document.getElementById('evalVolumeSlider').value) || 10;
     const model    = document.getElementById('evalModel').value;
     const strategy = document.getElementById('evalStrategy').value;
     document.getElementById('evalResults').classList.add('hidden');
     document.getElementById('evalLoading').classList.remove('hidden');
+    document.getElementById('evalLoadingDetail').textContent =
+        `Processing ${limit} stor${limit === 1 ? 'y' : 'ies'} with ${model} · ${strategy}...`;
     document.getElementById('evalRunBtn').disabled = true;
 
     const formData = new FormData();
     formData.append('file', evalFile);
     formData.append('model', model);
     formData.append('strategy', strategy);
+    formData.append('limit', limit);   // ← sent to backend
 
     try {
         const resp = await fetch('/api/evaluate', { method:'POST', body:formData });
         let data;
-        try { data = await resp.json(); }
-        catch (e) { showEvalError("Server returned invalid response."); return; }
-        if (!resp.ok || data.error) { showEvalError(data.error || "Evaluation failed."); return; }
+        try {
+            data = await resp.json();
+        } catch (e) {
+            const text = await resp.text();
+            console.error("Non-JSON response:", text);
+            showEvalError("Server returned invalid response (likely login expired or backend error).");
+            return;
+        }
+
+        if (!resp.ok || data.error) {
+            showEvalError(data.error || "Evaluation failed.");
+            return;
+        }
+
         evalData = data;
         renderResults(data);
     } catch (err) {
+        console.error("Fetch error:", err);
         showEvalError("Network error: " + err.message);
     } finally {
         document.getElementById('evalLoading').classList.add('hidden');
@@ -337,6 +526,7 @@ async function runEvaluation() {
 
 function renderResults(data) {
     const m = data.binary_metrics;
+
     document.getElementById('evalSummaryText').innerHTML =
         `Model: <strong>${data.model}</strong> &nbsp;·&nbsp; Strategy: <strong>${data.strategy}</strong> &nbsp;·&nbsp; `
       + `<strong>${data.valid}</strong> stories evaluated`
@@ -398,12 +588,18 @@ function renderResults(data) {
 
 function exportEvalCSV() {
     if (!evalData) return;
-    const rows = [['user_story','true_label','pred_label','correct','confidence','latency','reason']];
+    const rows = [['user_story', 'true_label', 'pred_label', 'correct', 'confidence', 'latency', 'reason']];
     evalData.details.forEach(d => {
         rows.push([`"${d.story.replace(/"/g,'""')}"`,d.true_label,d.pred_label,d.correct,d.confidence,d.latency,`"${d.reason.replace(/"/g,'""')}"`]);
     });
-    const a = Object.assign(document.createElement('a'),{href:URL.createObjectURL(new Blob([rows.map(r=>r.join(',')).join('\n')],{type:'text/csv'})),download:`eval_${evalData.model}_${evalData.strategy}.csv`});
-    a.click(); URL.revokeObjectURL(a.href);
+    const csvContent = rows.map(r => r.join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `eval_${evalData.model}_${evalData.strategy}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
 }
 
 function escapeHtml(str) {
