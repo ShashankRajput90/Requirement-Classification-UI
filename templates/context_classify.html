@@ -58,7 +58,7 @@
                     <label class="text-sm font-medium text-gray-700 dark:text-gray-300">User Story / Requirement</label>
                     <textarea id="contextStoryInput" rows="4"
                         class="w-full mt-1 themed-input rounded-xl p-4 text-base focus:ring-2 focus:ring-purple-500 transition-all placeholder-gray-400 dark:placeholder-gray-600 resize-none shadow-inner"
-                        placeholder="e.g., The system shall process payments within 3 seconds."></textarea>
+                        placeholder="e.g., As a user, I want a secure login system so that my data is protected."></textarea>
                 </div>
 
                 <!-- Model + Strategy -->
@@ -221,237 +221,7 @@
     </div>
 </div>
 
-<!-- ══════════════════════════════════════════════════════════
-     CSV / DATASET BATCH UPLOAD SECTION
-     ══════════════════════════════════════════════════════════ -->
-<div class="mt-8 space-y-6">
-
-    <!-- Section Header -->
-    <div class="flex items-center gap-3">
-        <div class="h-px flex-1 bg-gray-200 dark:bg-slate-700"></div>
-        <span class="text-sm font-semibold text-gray-400 uppercase tracking-widest px-3">Batch CSV Classification</span>
-        <div class="h-px flex-1 bg-gray-200 dark:bg-slate-700"></div>
-    </div>
-
-    <!-- Info Banner -->
-    <div class="glass-card p-4 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700/40">
-        <div class="flex items-start gap-3">
-            <svg class="w-5 h-5 text-blue-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
-            </svg>
-            <div class="text-sm text-blue-800 dark:text-blue-300">
-                <strong>Upload a CSV file</strong> with a <code class="bg-blue-100 dark:bg-blue-800/50 px-1 rounded">story</code> column
-                (optionally also <code class="bg-blue-100 dark:bg-blue-800/50 px-1 rounded">label</code> for accuracy comparison).
-                Each row is classified using the selected domain, model, and strategy.
-                Results can be downloaded as a CSV.
-            </div>
-        </div>
-    </div>
-
-    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
-
-        <!-- LEFT: Upload Controls -->
-        <div class="glass-card p-6 rounded-2xl bg-white/70 dark:bg-slate-800/70 space-y-4">
-            <h3 class="font-semibold text-gray-900 dark:text-white">Upload & Settings</h3>
-
-            <!-- File Drop Zone -->
-            <div id="csvDropZone"
-                class="relative border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-xl p-8 text-center cursor-pointer hover:border-purple-400 dark:hover:border-purple-500 transition-colors"
-                onclick="document.getElementById('csvFileInput').click()"
-                ondragover="onCsvDragOver(event)"
-                ondragleave="onCsvDragLeave(event)"
-                ondrop="onCsvDrop(event)">
-                <input type="file" id="csvFileInput" accept=".csv" class="hidden" onchange="onCsvFileSelected(event)">
-                <svg class="w-10 h-10 text-gray-300 dark:text-slate-600 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                        d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
-                </svg>
-                <p id="csvDropLabel" class="text-sm text-gray-400 dark:text-gray-500">
-                    <span class="font-medium text-purple-500">Click to upload</span> or drag & drop
-                </p>
-                <p class="text-xs text-gray-400 mt-1">CSV files only · must have a <strong>story</strong> column</p>
-            </div>
-
-            <!-- File Preview Info -->
-            <div id="csvFileInfo" class="hidden p-3 bg-gray-50 dark:bg-slate-900/50 rounded-lg border border-gray-200 dark:border-slate-700/50 text-sm space-y-1">
-                <div class="flex items-center justify-between">
-                    <span class="font-medium text-gray-700 dark:text-gray-200" id="csvFileName">--</span>
-                    <button onclick="clearCsvFile()" class="text-xs text-red-400 hover:text-red-500">✕ Remove</button>
-                </div>
-                <div class="text-xs text-gray-400">
-                    <span id="csvRowCount">0</span> rows detected &nbsp;·&nbsp;
-                    Columns: <span id="csvColumns" class="font-mono">--</span>
-                </div>
-                <!-- Preview table -->
-                <div class="overflow-x-auto mt-2 max-h-32">
-                    <table class="text-xs w-full" id="csvPreviewTable"></table>
-                </div>
-            </div>
-
-            <!-- Batch-specific settings -->
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Domain</label>
-                    <select id="csvDomainSelect" class="w-full mt-1 themed-input rounded-lg p-2.5 text-sm">
-                        {% for domain in domains %}
-                        <option value="{{ domain }}">{{ domain }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div>
-                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Strategy</label>
-                    <select id="csvStrategySelect" class="w-full mt-1 themed-input rounded-lg p-2.5 text-sm">
-                        <option value="Zero-shot">Zero-shot</option>
-                        <option value="Few-shot">Few-shot</option>
-                        <option value="Chain-of-Thought">Chain-of-Thought</option>
-                        <option value="Role-Based">Role-Based</option>
-                        <option value="ReAct">ReAct</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Model</label>
-                    <select id="csvModelSelect" class="w-full mt-1 themed-input rounded-lg p-2.5 text-sm">
-                        <option value="ChatGPT">ChatGPT-4o</option>
-                        <option value="Gemini">Gemini 2.5 Pro</option>
-                        <option value="Claude">Claude 3 Haiku</option>
-                        <option value="Groq">Llama 3 (Groq)</option>
-                        <option value="Cohere">Cohere Command-R+</option>
-                        <option value="Mistral">Mistral (Local)</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Max Rows</label>
-                    <input type="number" id="csvMaxRows" value="50" min="1" max="500"
-                        class="w-full mt-1 themed-input rounded-lg p-2.5 text-sm">
-                </div>
-            </div>
-
-            <!-- Error -->
-            <div id="csvError"
-                class="hidden items-center gap-3 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
-                <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-                </svg>
-                <span id="csvErrorText"></span>
-            </div>
-
-            <!-- Run Button -->
-            <div class="flex gap-3 pt-2 border-t border-gray-200 dark:border-slate-700">
-                <button onclick="runCsvBatch()"
-                    class="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2.5 px-4 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
-                    </svg>
-                    Run Batch Classification
-                </button>
-                <button onclick="downloadCsvResults()" id="csvDownloadBtn"
-                    class="hidden bg-green-600 hover:bg-green-500 text-white font-semibold py-2.5 px-4 rounded-xl transition-all flex items-center gap-2 text-sm">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
-                    </svg>
-                    Download CSV
-                </button>
-            </div>
-        </div>
-
-        <!-- RIGHT: Batch Results -->
-        <div class="space-y-4">
-
-            <!-- Progress -->
-            <div id="csvProgress" class="hidden glass-card p-6 rounded-2xl bg-white/70 dark:bg-slate-800/70">
-                <div class="flex items-center justify-between mb-3">
-                    <h3 class="font-semibold text-gray-900 dark:text-white text-sm">Processing...</h3>
-                    <span id="csvProgressText" class="text-xs text-gray-400">0 / 0</span>
-                </div>
-                <div class="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2 mb-3">
-                    <div id="csvProgressBar" class="h-2 rounded-full bg-blue-500 transition-all duration-300" style="width:0%"></div>
-                </div>
-                <p id="csvCurrentStory" class="text-xs text-gray-400 truncate italic">Initializing...</p>
-            </div>
-
-            <!-- Summary Stats (shown after completion) -->
-            <div id="csvSummaryCard" class="hidden glass-card p-6 rounded-2xl bg-white/70 dark:bg-slate-800/70">
-                <h3 class="font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                    <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-                    </svg>
-                    Batch Summary
-                </h3>
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-                    <div class="text-center p-3 bg-gray-50 dark:bg-slate-900/50 rounded-xl">
-                        <div id="csvStatTotal" class="text-2xl font-bold text-gray-800 dark:text-white">0</div>
-                        <div class="text-xs text-gray-400 mt-1">Total</div>
-                    </div>
-                    <div class="text-center p-3 bg-red-50 dark:bg-red-900/20 rounded-xl">
-                        <div id="csvStatNFR" class="text-2xl font-bold text-red-500">0</div>
-                        <div class="text-xs text-gray-400 mt-1">NFR</div>
-                    </div>
-                    <div class="text-center p-3 bg-green-50 dark:bg-green-900/20 rounded-xl">
-                        <div id="csvStatFR" class="text-2xl font-bold text-green-500">0</div>
-                        <div class="text-xs text-gray-400 mt-1">FR</div>
-                    </div>
-                    <div class="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
-                        <div id="csvStatAccuracy" class="text-2xl font-bold text-blue-500">--</div>
-                        <div class="text-xs text-gray-400 mt-1">Accuracy</div>
-                    </div>
-                </div>
-                <div class="text-xs text-gray-400 mb-1">Avg RQI Score</div>
-                <div class="flex items-center gap-3">
-                    <div id="csvAvgRqi" class="text-lg font-bold text-gray-800 dark:text-white">--</div>
-                    <div class="flex-1 bg-gray-200 dark:bg-slate-700 rounded-full h-2">
-                        <div id="csvAvgRqiBar" class="h-2 rounded-full bg-purple-500 transition-all" style="width:0%"></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Results Table -->
-            <div id="csvResultsTableCard" class="hidden glass-card p-6 rounded-2xl bg-white/70 dark:bg-slate-800/70">
-                <div class="flex items-center justify-between mb-3">
-                    <h3 class="font-semibold text-gray-900 dark:text-white text-sm">Results</h3>
-                    <span id="csvResultsCount" class="text-xs text-gray-400"></span>
-                </div>
-                <div class="overflow-x-auto max-h-80 overflow-y-auto">
-                    <table class="w-full text-xs">
-                        <thead>
-                            <tr class="text-gray-400 border-b border-gray-200 dark:border-slate-700">
-                                <th class="text-left py-2 pr-3 font-semibold">#</th>
-                                <th class="text-left py-2 pr-3 font-semibold">Story</th>
-                                <th class="text-left py-2 pr-3 font-semibold">Result</th>
-                                <th class="text-left py-2 pr-3 font-semibold">NFR Type</th>
-                                <th class="text-left py-2 pr-3 font-semibold">RQI</th>
-                                <th class="text-left py-2 font-semibold">Match</th>
-                            </tr>
-                        </thead>
-                        <tbody id="csvResultsBody" class="divide-y divide-gray-100 dark:divide-slate-700/50"></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Placeholder -->
-            <div id="csvPlaceholder"
-                class="glass-card p-12 rounded-2xl bg-white/70 dark:bg-slate-800/70 flex flex-col items-center justify-center text-center">
-                <div class="w-16 h-16 rounded-full bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center mb-4">
-                    <svg class="w-8 h-8 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                            d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                    </svg>
-                </div>
-                <p class="text-gray-400 font-medium">Upload a CSV to classify in bulk</p>
-                <p class="text-gray-500 text-sm mt-1">Results will appear here row by row</p>
-            </div>
-
-        </div>
-    </div>
-</div>
-
 <script>
-// Domain metadata passed from Flask
-
 
 // Simpler approach — hardcode in JS since it matches context_utils.py
 const DOMAINS = {
@@ -488,6 +258,16 @@ function updateDomainPreview() {
 // Run on page load
 updateDomainPreview();
 
+// ── Utility Functions ──────────────────────────────────────────
+function isValidUserStory(story) {
+    const lower = story.toLowerCase().trim();
+    // Must start with "as a"
+    if (!lower.startsWith('as a')) return false;
+    // Must contain "i want" or "i need"
+    if (!lower.includes('i want') && !lower.includes('i need')) return false;
+    return true;
+}
+
 // ── Classify with Context ────────────────────────────────────
 async function runContextClassify() {
     const story    = document.getElementById('contextStoryInput').value.trim();
@@ -498,6 +278,9 @@ async function runContextClassify() {
     hideContextError();
 
     if (!story) { showContextError("Please enter a requirement."); return; }
+
+    // Validate user story format
+    if (!isValidUserStory(story)) { showContextError("Please enter a valid user story (e.g., 'As a user, I want...')."); return; }
 
     document.getElementById('contextPlaceholder').classList.add('hidden');
     document.getElementById('contextResultCard').classList.add('hidden');
@@ -527,6 +310,9 @@ async function runContextClassify() {
 async function runRQIOnly() {
     const story = document.getElementById('contextStoryInput').value.trim();
     if (!story) { showContextError("Please enter a requirement."); return; }
+
+    // Validate user story format
+    if (!isValidUserStory(story)) { showContextError("Please enter a valid user story (e.g., 'As a user, I want...')."); return; }
 
     hideContextError();
     document.getElementById('contextPlaceholder').classList.add('hidden');
@@ -620,304 +406,6 @@ function showContextError(msg) {
 
 function hideContextError() {
     const el = document.getElementById('contextError');
-    el.classList.add('hidden');
-    el.classList.remove('flex');
-}
-
-// ══════════════════════════════════════════
-// CSV BATCH UPLOAD
-// ══════════════════════════════════════════
-
-let csvParsedRows = [];   // [{story, label?}, ...]
-let csvResults    = [];   // accumulated results for download
-
-// ── Drag & Drop helpers ──
-function onCsvDragOver(e) {
-    e.preventDefault();
-    document.getElementById('csvDropZone').classList.add('border-purple-400');
-}
-function onCsvDragLeave(e) {
-    document.getElementById('csvDropZone').classList.remove('border-purple-400');
-}
-function onCsvDrop(e) {
-    e.preventDefault();
-    document.getElementById('csvDropZone').classList.remove('border-purple-400');
-    const file = e.dataTransfer.files[0];
-    if (file) parseCsvFile(file);
-}
-function onCsvFileSelected(e) {
-    const file = e.target.files[0];
-    if (file) parseCsvFile(file);
-}
-
-// ── Simple CSV parser ──
-function parseCSVText(text) {
-    const lines = text.trim().split(/\r?\n/);
-    if (lines.length < 2) return { headers: [], rows: [] };
-
-    // Detect delimiter
-    const delim = lines[0].includes('\t') ? '\t' : ',';
-
-    function splitLine(line) {
-        const result = [];
-        let cur = '', inQuotes = false;
-        for (let i = 0; i < line.length; i++) {
-            const ch = line[i];
-            if (ch === '"') {
-                inQuotes = !inQuotes;
-            } else if (ch === delim && !inQuotes) {
-                result.push(cur.trim()); cur = '';
-            } else {
-                cur += ch;
-            }
-        }
-        result.push(cur.trim());
-        return result;
-    }
-
-    const headers = splitLine(lines[0]).map(h => h.toLowerCase().replace(/['"]/g, '').trim());
-    const rows = lines.slice(1).map(l => {
-        const vals = splitLine(l);
-        const obj = {};
-        headers.forEach((h, i) => { obj[h] = (vals[i] || '').replace(/^"|"$/g, '').trim(); });
-        return obj;
-    });
-    return { headers, rows };
-}
-
-function parseCsvFile(file) {
-    if (!file.name.endsWith('.csv')) {
-        showCsvError('Please upload a .csv file.'); return;
-    }
-    hideCsvError();
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        const { headers, rows } = parseCSVText(e.target.result);
-
-        // Find story column (flexible: story, requirement, text, req, user_story)
-        const storyCol = headers.find(h =>
-            ['story', 'requirement', 'text', 'req', 'user_story', 'description'].includes(h)
-        );
-        if (!storyCol) {
-            showCsvError(`No story column found. Detected columns: ${headers.join(', ')}`);
-            return;
-        }
-
-        const labelCol = headers.find(h => ['label', 'is_nfr', 'type', 'nfr'].includes(h)) || null;
-
-        csvParsedRows = rows
-            .filter(r => r[storyCol] && r[storyCol].length > 3)
-            .map(r => ({
-                story: r[storyCol],
-                label: labelCol ? r[labelCol] : null
-            }));
-
-        if (csvParsedRows.length === 0) {
-            showCsvError('No valid rows found in the story column.'); return;
-        }
-
-        // Show file info
-        document.getElementById('csvFileName').textContent    = file.name;
-        document.getElementById('csvRowCount').textContent    = csvParsedRows.length;
-        document.getElementById('csvColumns').textContent     = headers.join(', ');
-        document.getElementById('csvDropLabel').textContent   = '✓ ' + file.name;
-        document.getElementById('csvFileInfo').classList.remove('hidden');
-
-        // Mini preview table
-        const preview = csvParsedRows.slice(0, 3);
-        const tbl = document.getElementById('csvPreviewTable');
-        tbl.innerHTML = `<tr class="text-gray-400">${['#','Story', labelCol ? 'Label' : ''].filter(Boolean).map(h=>`<th class="text-left pb-1 pr-2">${h}</th>`).join('')}</tr>` +
-            preview.map((r, i) => `<tr>
-                <td class="pr-2 text-gray-400">${i+1}</td>
-                <td class="pr-2 text-gray-600 dark:text-gray-300 max-w-xs truncate">${r.story}</td>
-                ${labelCol ? `<td class="text-gray-400">${r.label || ''}</td>` : ''}
-            </tr>`).join('');
-    };
-    reader.readAsText(file);
-}
-
-function clearCsvFile() {
-    csvParsedRows = [];
-    csvResults    = [];
-    document.getElementById('csvFileInput').value = '';
-    document.getElementById('csvFileInfo').classList.add('hidden');
-    document.getElementById('csvDropLabel').innerHTML = '<span class="font-medium text-purple-500">Click to upload</span> or drag & drop';
-    document.getElementById('csvDownloadBtn').classList.add('hidden');
-    document.getElementById('csvSummaryCard').classList.add('hidden');
-    document.getElementById('csvResultsTableCard').classList.add('hidden');
-    document.getElementById('csvPlaceholder').classList.remove('hidden');
-    hideCsvError();
-}
-
-// ── Run Batch ──
-async function runCsvBatch() {
-    if (csvParsedRows.length === 0) {
-        showCsvError('Please upload a CSV file first.'); return;
-    }
-    hideCsvError();
-
-    const domain   = document.getElementById('csvDomainSelect').value;
-    const model    = document.getElementById('csvModelSelect').value;
-    const strategy = document.getElementById('csvStrategySelect').value;
-    const maxRows  = parseInt(document.getElementById('csvMaxRows').value) || 50;
-    const rows     = csvParsedRows.slice(0, maxRows);
-
-    csvResults = [];
-    document.getElementById('csvPlaceholder').classList.add('hidden');
-    document.getElementById('csvSummaryCard').classList.add('hidden');
-    document.getElementById('csvResultsTableCard').classList.add('hidden');
-    document.getElementById('csvDownloadBtn').classList.add('hidden');
-    document.getElementById('csvProgress').classList.remove('hidden');
-    document.getElementById('csvResultsBody').innerHTML = '';
-
-    let done = 0, nfrCount = 0, frCount = 0, correct = 0, hasLabel = false, rqiSum = 0;
-
-    for (const row of rows) {
-        document.getElementById('csvProgressText').textContent = `${done + 1} / ${rows.length}`;
-        document.getElementById('csvProgressBar').style.width  = `${Math.round((done / rows.length) * 100)}%`;
-        document.getElementById('csvCurrentStory').textContent  = row.story.slice(0, 100) + (row.story.length > 100 ? '...' : '');
-
-        let result = { story: row.story, label: row.label, classification: 'Error', category: '--', rqi: 0, match: null };
-
-        try {
-            const resp = await fetch('/api/context-classify', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ story: row.story, domain, model, strategy })
-            });
-            const data = await resp.json();
-
-            if (resp.ok && !data.error) {
-                result.classification = data.classification;
-                result.category       = data.category || 'N/A';
-                result.rqi            = data.rqi?.final_score ?? 0;
-                rqiSum += result.rqi;
-
-                if (result.classification === 'NFR') nfrCount++;
-                else frCount++;
-
-                // Accuracy check if label column exists
-                if (row.label !== null) {
-                    hasLabel = true;
-                    const predicted = result.classification.toLowerCase();
-                    const actual    = row.label.toLowerCase().trim();
-                    // Normalize: "yes"/"nfr"/"1" = NFR; "no"/"fr"/"0" = FR
-                    const predNFR = predicted === 'nfr';
-                    const actNFR  = ['yes','nfr','1','true'].includes(actual);
-                    result.match  = predNFR === actNFR;
-                    if (result.match) correct++;
-                }
-            } else {
-                result.classification = 'Error';
-                result.category = data.error || 'Failed';
-            }
-        } catch (err) {
-            result.classification = 'Error';
-            result.category = err.message;
-        }
-
-        csvResults.push(result);
-        appendCsvResultRow(result, done + 1);
-        done++;
-
-        // Show table progressively
-        document.getElementById('csvResultsTableCard').classList.remove('hidden');
-        document.getElementById('csvResultsCount').textContent = `${done} / ${rows.length} rows`;
-
-        // Small delay to avoid hammering the API
-        await new Promise(r => setTimeout(r, 200));
-    }
-
-    // Final progress
-    document.getElementById('csvProgressBar').style.width = '100%';
-    document.getElementById('csvProgressText').textContent = `${done} / ${rows.length} ✓`;
-    setTimeout(() => document.getElementById('csvProgress').classList.add('hidden'), 800);
-
-    // Summary
-    const total  = csvResults.filter(r => r.classification !== 'Error').length;
-    const avgRqi = total > 0 ? (rqiSum / total).toFixed(1) : '--';
-    document.getElementById('csvStatTotal').textContent    = done;
-    document.getElementById('csvStatNFR').textContent      = nfrCount;
-    document.getElementById('csvStatFR').textContent       = frCount;
-    document.getElementById('csvAvgRqi').textContent       = avgRqi;
-    document.getElementById('csvAvgRqiBar').style.width    = avgRqi !== '--' ? (avgRqi * 10) + '%' : '0%';
-    document.getElementById('csvStatAccuracy').textContent = hasLabel
-        ? Math.round((correct / done) * 100) + '%' : '--';
-    document.getElementById('csvSummaryCard').classList.remove('hidden');
-    document.getElementById('csvDownloadBtn').classList.remove('hidden');
-}
-
-function appendCsvResultRow(result, idx) {
-    const tbody = document.getElementById('csvResultsBody');
-    const isNFR = result.classification === 'NFR';
-    const isErr = result.classification === 'Error';
-
-    const badgeClass = isErr
-        ? 'bg-gray-100 dark:bg-gray-800 text-gray-400'
-        : isNFR
-            ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
-            : 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400';
-
-    const matchCell = result.match === null
-        ? '<td class="py-2 text-gray-300">—</td>'
-        : result.match
-            ? '<td class="py-2 text-green-500">✓</td>'
-            : '<td class="py-2 text-red-400">✗</td>';
-
-    const tr = document.createElement('tr');
-    tr.className = 'hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-colors';
-    tr.innerHTML = `
-        <td class="py-2 pr-2 text-gray-400">${idx}</td>
-        <td class="py-2 pr-3 max-w-xs">
-            <span class="block truncate text-gray-600 dark:text-gray-300" title="${result.story.replace(/"/g,"&quot;")}">${result.story.slice(0,60)}${result.story.length > 60 ? '…' : ''}</span>
-        </td>
-        <td class="py-2 pr-3">
-            <span class="px-2 py-0.5 rounded-md font-semibold text-xs ${badgeClass}">${result.classification}</span>
-        </td>
-        <td class="py-2 pr-3 text-gray-500">${result.category}</td>
-        <td class="py-2 pr-3 font-mono text-gray-600 dark:text-gray-300">${result.rqi || '--'}</td>
-        ${matchCell}
-    `;
-    tbody.appendChild(tr);
-    tr.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-}
-
-// ── Download CSV ──
-function downloadCsvResults() {
-    if (csvResults.length === 0) return;
-
-    const headers = ['#', 'Story', 'Classification', 'NFR_Type', 'RQI_Score', 'Label', 'Correct'];
-    const rows = csvResults.map((r, i) => [
-        i + 1,
-        `"${(r.story || '').replace(/"/g, '""')}"`,
-        r.classification,
-        r.category || '',
-        r.rqi || '',
-        r.label || '',
-        r.match === null ? '' : r.match ? 'Yes' : 'No'
-    ]);
-
-    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href     = url;
-    a.download = `context_classify_results_${Date.now()}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-}
-
-// ── Error helpers ──
-function showCsvError(msg) {
-    const el = document.getElementById('csvError');
-    document.getElementById('csvErrorText').textContent = msg;
-    el.classList.remove('hidden');
-    el.classList.add('flex');
-}
-function hideCsvError() {
-    const el = document.getElementById('csvError');
     el.classList.add('hidden');
     el.classList.remove('flex');
 }
