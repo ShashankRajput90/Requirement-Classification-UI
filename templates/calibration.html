@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="space-y-6">
+<div class="space-y-6" id="mainContent">
 
   <!-- Header -->
   <div class="text-center">
@@ -13,54 +13,101 @@
     </p>
   </div>
 
-  <!-- Cards -->
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+  <!-- Empty State -->
+  <div id="emptyState" class="hidden text-center py-20">
+    <div class="text-5xl mb-4">📭</div>
+    <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-200">
+      No Calibration Data Found
+    </h3>
+    <p class="text-gray-500 mt-2">
+      Run model evaluation first to generate calibration metrics.
+    </p>
 
-    <!-- ECE Card -->
-    <div class="glass-card p-6 rounded-2xl bg-white/70 dark:bg-slate-800/70 text-center">
-      <p class="text-sm text-gray-500 uppercase">ECE</p>
-      <p id="eceValue" class="text-3xl font-bold text-blue-500 mt-2">--</p>
-      <p class="text-xs text-gray-400 mt-1">Lower is better</p>
-    </div>
-
-    <!-- Avg Confidence -->
-    <div class="glass-card p-6 rounded-2xl bg-white/70 dark:bg-slate-800/70 text-center">
-      <p class="text-sm text-gray-500 uppercase">Avg Confidence</p>
-      <p id="avgConf" class="text-3xl font-bold text-purple-500 mt-2">--</p>
-    </div>
-
-    <!-- Accuracy -->
-    <div class="glass-card p-6 rounded-2xl bg-white/70 dark:bg-slate-800/70 text-center">
-      <p class="text-sm text-gray-500 uppercase">Accuracy</p>
-      <p id="accuracy" class="text-3xl font-bold text-green-500 mt-2">--</p>
-    </div>
-
+    <a href="{{ url_for('evaluate') }}">
+      <button class="mt-6 px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg shadow">
+        Go to Evaluate Model →
+      </button>
+    </a>
   </div>
 
-  <!-- Chart -->
-  <div class="glass-card p-6 rounded-2xl bg-white/70 dark:bg-slate-800/70">
-    <h3 class="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">
-      Reliability Diagram
-    </h3>
-    <canvas id="calibrationChart" height="100"></canvas>
+  <!-- Actual Content -->
+  <div id="calibrationContent" class="hidden">
+
+    <!-- Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+      <!-- ECE -->
+      <div class="glass-card p-6 rounded-2xl bg-white/70 dark:bg-slate-800/70 text-center">
+        <p class="text-sm text-gray-500 uppercase">ECE</p>
+        <p id="eceValue" class="text-3xl font-bold text-blue-500 mt-2">--</p>
+        <p class="text-xs text-gray-400 mt-1">Lower is better</p>
+      </div>
+
+      <!-- Avg Confidence -->
+      <div class="glass-card p-6 rounded-2xl bg-white/70 dark:bg-slate-800/70 text-center">
+        <p class="text-sm text-gray-500 uppercase">Avg Confidence</p>
+        <p id="avgConf" class="text-3xl font-bold text-purple-500 mt-2">--</p>
+      </div>
+
+      <!-- Accuracy -->
+      <div class="glass-card p-6 rounded-2xl bg-white/70 dark:bg-slate-800/70 text-center">
+        <p class="text-sm text-gray-500 uppercase">Accuracy</p>
+        <p id="accuracy" class="text-3xl font-bold text-green-500 mt-2">--</p>
+      </div>
+
+    </div>
+
+    <!-- Chart -->
+    <div class="glass-card p-6 rounded-2xl bg-white/70 dark:bg-slate-800/70">
+      <h3 class="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">
+        Reliability Diagram
+      </h3>
+      <canvas id="calibrationChart" height="100"></canvas>
+    </div>
+
   </div>
 
 </div>
 {% endblock %}
+
 
 {% block scripts %}
 <script>
 
 async function loadCalibration() {
   const res = await fetch("/api/calibration");
-  const data = await res.json();
+  const result = await res.json();
+
+  if (result.status === "empty") {
+    showEmptyState();
+  } else {
+    showCalibration(result.data);
+  }
+}
+
+/* =========================
+   UI HANDLING
+========================= */
+
+function showEmptyState(){
+  document.getElementById("emptyState").classList.remove("hidden");
+  document.getElementById("calibrationContent").classList.add("hidden");
+}
+
+function showCalibration(data){
+  document.getElementById("emptyState").classList.add("hidden");
+  document.getElementById("calibrationContent").classList.remove("hidden");
 
   renderAll(data);
 }
 
+
+/* =========================
+   CORE LOGIC
+========================= */
+
 function renderAll(data){
   const points = computeCalibration(data);
-
   renderChart(points);
   renderStats(data);
 }
@@ -92,18 +139,30 @@ function computeCalibration(data) {
   }).filter(Boolean);
 }
 
+
+/* =========================
+   CHART
+========================= */
+
+let chartInstance = null;
+
 function renderChart(points){
 
   const ctx = document.getElementById("calibrationChart");
 
-  new Chart(ctx, {
+  if(chartInstance){
+    chartInstance.destroy();
+  }
+
+  chartInstance = new Chart(ctx, {
     type: 'line',
     data: {
       datasets: [
         {
           label: 'Model Calibration',
           data: points,
-          borderWidth: 2
+          borderWidth: 3,
+          tension: 0.3
         },
         {
           label: 'Perfect Calibration',
@@ -111,24 +170,44 @@ function renderChart(points){
             {x: 0, y: 0},
             {x: 100, y: 100}
           ],
-          borderDash: [5,5]
+          borderDash: [6,6],
+          borderWidth: 2
         }
       ]
     },
     options: {
       parsing: false,
+      responsive: true,
+      plugins: {
+        legend: {
+          labels: {
+            color: '#9CA3AF'
+          }
+        }
+      },
       scales: {
         x: {
           type: 'linear',
-          title: { display: true, text: 'Confidence (%)' }
+          title: {
+            display: true,
+            text: 'Confidence (%)'
+          }
         },
         y: {
-          title: { display: true, text: 'Accuracy (%)' }
+          title: {
+            display: true,
+            text: 'Accuracy (%)'
+          }
         }
       }
     }
   });
 }
+
+
+/* =========================
+   STATS
+========================= */
 
 function renderStats(data){
 
@@ -136,10 +215,20 @@ function renderStats(data){
   let correct = data.reduce((s,d)=>s+d.correct,0);
   let avgConf = data.reduce((s,d)=>s+d.confidence,0)/total;
 
-  document.getElementById("accuracy").innerText = ((correct/total)*100).toFixed(1)+"%";
-  document.getElementById("avgConf").innerText = avgConf.toFixed(1)+"%";
-  document.getElementById("eceValue").innerText = computeECE(data).toFixed(3);
+  document.getElementById("accuracy").innerText =
+    ((correct/total)*100).toFixed(1)+"%";
+
+  document.getElementById("avgConf").innerText =
+    avgConf.toFixed(1)+"%";
+
+  document.getElementById("eceValue").innerText =
+    computeECE(data).toFixed(3);
 }
+
+
+/* =========================
+   ECE
+========================= */
 
 function computeECE(data){
 
@@ -160,6 +249,11 @@ function computeECE(data){
 
   return ece;
 }
+
+
+/* =========================
+   INIT
+========================= */
 
 loadCalibration();
 

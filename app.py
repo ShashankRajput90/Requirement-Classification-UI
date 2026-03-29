@@ -832,31 +832,47 @@ def analytics_data():
 @login_required
 def calibration_data():
 
+    latest_run = (
+        db.session.query(BatchRun)
+        .join(BatchResult, BatchRun.id == BatchResult.batch_run_id)
+        .filter(
+            BatchRun.user_id == current_user.id,
+            BatchResult.true_label.isnot(None)
+        )
+        .order_by(BatchRun.id.desc())
+        .first()
+    )
+
+    if not latest_run:
+        return jsonify({"status": "empty", "data": []})
+
     results = BatchResult.query.filter(
+        BatchResult.batch_run_id == latest_run.id,
         BatchResult.true_label.isnot(None),
         BatchResult.confidence.isnot(None)
     ).all()
 
     if not results:
-        return jsonify([])
+        return jsonify({"status": "empty", "data": []})
 
-    data = []
-
-    for r in results:
-        is_correct = 1 if r.classification == r.true_label else 0
-
-        data.append({
+    data = [
+        {
             "confidence": r.confidence,
-            "correct": is_correct
-        })
+            "correct": 1 if r.classification == r.true_label else 0
+        }
+        for r in results
+    ]
 
-    return jsonify(data)
+    return jsonify({"status": "ok", "data": data})
 
 @app.route("/api/reset_batch", methods=["POST"])
 @login_required
 def reset_batch():
-    global batch_results_storage
-    batch_results_storage = []
+
+    BatchResult.query.delete()
+    BatchRun.query.delete()
+    db.session.commit()
+
     return jsonify({"status": "cleared"})
 
 # =========================
@@ -1071,7 +1087,16 @@ def run_evaluation():
     # Apply the limit to the number of stories to process
     df = df.head(limit)
     print(f"Number of stories to process: {len(df)}")  # Debug print
-
+     # Create a BatchRun entry so calibration can group results by run
+    eval_run = BatchRun(
+        user_id=current_user.id,
+        model=model,
+        prompting_technique=strategy,
+        total_stories=len(df)
+    )
+    db.session.add(eval_run)
+    db.session.commit()
+    eval_run_id = eval_run.id
     # --- Run classification for each story ---
     y_true, y_pred, details = [], [], []
 
@@ -1122,6 +1147,7 @@ def run_evaluation():
         # ✅ SAVE TO DATABASE FOR CALIBRATION
         result_row = BatchResult(
             user_id=current_user.id,
+            batch_run_id=eval_run_id,   # ← ties result to this eval run
             story=story,
             model=model,
             classification=pred_label,
