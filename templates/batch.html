@@ -18,7 +18,6 @@
         </div>
     </div>
 
-
     <!-- Upload Card -->
     <div class="glass-card rounded-2xl p-8 border-dashed border-2 border-gray-300 dark:border-slate-600 hover:border-blue-500 transition-colors cursor-pointer group relative bg-white/50 dark:bg-slate-800/50"
         id="dropZone">
@@ -155,6 +154,49 @@
         </div>
     </div>
 
+
+<!-- 🔥 Similarity Grouping Section -->
+<!-- Smart Grouping ABOVE results -->
+<div class="glass-card p-6 rounded-2xl bg-white/70 dark:bg-slate-800/70 mt-6 shadow-lg">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+            Batch Processing Modes
+        </h3>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 md:mt-0">
+            Choose how you want to process user stories
+        </p>
+    </div>
+
+    <!-- Buttons -->
+    <div class="flex flex-wrap gap-6 mb-5">
+
+        <!-- Smart Grouping -->
+        <div>
+            <button id="groupBatchBtn"
+                class="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg shadow transition">
+                ⚡ <span>Smart Grouping</span>
+            </button>
+            <p class="text-xs text-gray-400 mt-1">
+                Automatically clusters similar stories
+            </p>
+        </div>
+
+        <!-- Standard Processing -->
+        <div>
+            <button id="groupNormalBtn"
+                class="flex items-center gap-2 px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg shadow transition">
+                📊 <span>Standard Processing</span>
+            </button>
+            <p class="text-xs text-gray-400 mt-1">
+                Processes stories one-by-one (no grouping)
+            </p>
+        </div>
+
+    </div>
+
+</div>
+
     <!-- Results Overview -->
     <div id="batchResults" class="hidden space-y-6 fade-in">
         <!-- Stats Cards -->
@@ -224,59 +266,11 @@
                 </div>
             </div>
         </div>
-        <!-- Generate CSV - bottom button -->
-        <div class="flex justify-center pt-2 pb-4">
-            <button onclick="exportBatchCSV()" id="exportBtnBottom" disabled
-                class="flex items-center gap-2 px-6 py-3 rounded-2xl text-sm font-bold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-lg shadow-emerald-500/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                Generate CSV
-            </button>
-        </div>
     </div>
 </div>
 
 <!-- 🔥 Similarity Grouping Section -->
-<!-- 🔥 Similarity Grouping Section -->
-<div class="glass-card p-6 rounded-2xl bg-white/70 dark:bg-slate-800/70 mt-6">
 
-    <!-- Header -->
-    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-            Batch Processing Modes
-        </h3>
-        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 md:mt-0">
-            Choose how you want to process user stories
-        </p>
-    </div>
-
-    <!-- Buttons -->
-    <div class="flex flex-wrap gap-6 mb-5">
-
-        <!-- Smart Grouping -->
-        <div>
-            <button id="groupBatchBtn"
-                class="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg shadow transition">
-                ⚡ <span>Smart Grouping</span>
-            </button>
-            <p class="text-xs text-gray-400 mt-1">
-                Automatically clusters similar stories
-            </p>
-        </div>
-
-        <!-- Standard Processing -->
-        <div>
-            <button id="groupNormalBtn"
-                class="flex items-center gap-2 px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg shadow transition">
-                📊 <span>Standard Processing</span>
-            </button>
-            <p class="text-xs text-gray-400 mt-1">
-                Processes stories one-by-one (no grouping)
-            </p>
-        </div>
-
-    </div>
-
-</div>
 
     <!-- Loader -->
     <div id="groupLoader" class="hidden flex items-center gap-2 text-sm text-gray-500 mb-4">
@@ -287,5 +281,4 @@
     <!-- Results -->
     <div id="groupResults" class="space-y-4"></div>
 </div>
-{% endblock %}
 {% endblock %}
