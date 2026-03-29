@@ -1,5 +1,3 @@
-<<<<<<< HEAD
-=======
 // dashboard.js
 
 // --- Global Config ---
@@ -21,7 +19,6 @@ function isValidUserStory(story) {
   return true;
 }
 
->>>>>>> 9d19c37f567bcabdff90857bcf22c8d561f231ae
 function getSelectedModel() {
   return document.getElementById("modelSelect")
     ? document.getElementById("modelSelect").value
