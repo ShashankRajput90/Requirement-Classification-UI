@@ -14,6 +14,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 # ==========================
 # DOMAIN CONTEXT TEMPLATES
 # ==========================
+
 DOMAIN_CONTEXTS = {
     "Software Application": {
         "system": "Software system handling user accounts and transactions",
@@ -42,6 +43,7 @@ DOMAIN_LIST = list(DOMAIN_CONTEXTS.keys())
 # ==========================
 # SYSTEM CONTEXT BUILDER
 # ==========================
+
 def create_system_context(domain: str, stakeholders: str, system_desc: str) -> str:
     return f"""System Domain: {domain}
 
@@ -62,9 +64,8 @@ The system must ensure:
 
 # ==========================
 # TF-IDF CONTEXT BUILDER
-# Used when classifying a story within a batch/dataset
-# (finds similar neighboring stories to add as context)
 # ==========================
+
 def build_tfidf_context(df, index, tfidf_matrix, threshold=0.1, window_size=5):
     """
     Returns (previous_context, next_context) strings based on
@@ -91,6 +92,7 @@ def build_tfidf_context(df, index, tfidf_matrix, threshold=0.1, window_size=5):
 # ==========================
 # CONTEXT PROMPT BUILDER
 # ==========================
+
 def create_context_prompt(
     previous_context: str,
     current_req: str,
@@ -98,10 +100,6 @@ def create_context_prompt(
     technique: str,
     system_context: str
 ) -> str:
-    """
-    Builds a domain-context-aware classification prompt.
-    Includes previous/next requirements for surrounding context.
-    """
     examples = ""
     if technique == "few_shot":
         examples = """
@@ -155,23 +153,25 @@ Determine whether the CURRENT requirement is:
 
 INSTRUCTIONS
 ------------
-• Analyze the requirement carefully.
-• Consider surrounding requirements for context.
-• Identify quality attributes if present.
-• Only classify as NFR if it clearly represents a quality constraint.
+- Analyze the requirement carefully.
+- Consider surrounding requirements for context.
+- Identify quality attributes if present.
+- Only classify as NFR if it clearly represents a quality constraint.
 
 OUTPUT FORMAT (STRICT)
 ----------------------
-Respond ONLY in this exact format — no extra text:
+Respond ONLY in this exact format - no extra text:
 
 Is NFR: Yes or No
 NFR Type: <Performance | Security | Usability | Reliability | Scalability | Availability | Maintainability | Privacy | Safety | Compliance | None>
 Reason: <one sentence>
+Confidence: <number between 0 and 100>
 """
 
 # ==========================
 # RESPONSE EXTRACTION
 # ==========================
+
 def extract_is_nfr(response: str) -> str:
     """Returns 'Yes' or 'No'"""
     if not response:
@@ -201,26 +201,24 @@ def extract_reason(response: str) -> str:
 
 def extract_confidence(response: str) -> int:
     """
-    Extracts a confidence score (0-100) from any LLM response format.
-    Handles both baseline format ('4. Confidence: 85') and
-    context format where confidence may appear inline or be absent.
-    Falls back to 70 (neutral-high) when not found.
+    Extracts confidence score (0-100) from any LLM response format.
+    Handles 'Confidence: 85' and '4. Confidence: 85' formats.
+    Falls back to 70 when not found.
     """
     if not response:
         return 70
-    # Match 'Confidence: <number>' pattern (with optional leading '4.')
     match = re.search(r"(?:4\.)?\s*Confidence\s*[:\-]\s*([0-9]{1,3})", response, re.IGNORECASE)
     if match:
         val = int(match.group(1))
         return min(100, max(0, val))
-    # Fallback: find any standalone 2-3 digit number between 50-100 at end of line
+    # Fallback: standalone number 50-100 at end of a line
     match = re.search(r"\b([5-9][0-9]|100)\b\s*$", response, re.IGNORECASE | re.MULTILINE)
     if match:
         return int(match.group(1))
     return 70
 
 def extract_rqi_score(response: str):
-    """Extracts numeric RQI score (0–10) from LLM response"""
+    """Extracts numeric RQI score (0-10) from LLM response"""
     text  = str(response)
     match = re.search(r'([0-9]*\.?[0-9]+)', text)
     if match:
@@ -230,92 +228,55 @@ def extract_rqi_score(response: str):
     return None
 
 # ==========================
-# RQI — RULE-BASED (fast, no API cost)
+# RQI - RULE-BASED
 # ==========================
+
 def calculate_rqi_rule_based(requirement: str) -> int:
-    """
-    Scores a requirement on 15 quality criteria.
-    Returns a score from 0–10.
-    """
     if not requirement or not isinstance(requirement, str):
         return 0
 
     req   = requirement.lower().strip()
     score = 0
 
-    # 1 Correctness
     if any(w in req for w in ["system", "application", "user"]) and \
        any(w in req for w in ["shall", "must"]):
         score += 1
-
-    # 2 Clarity — no vague words
     if not any(w in req for w in ["fast", "quick", "efficient", "etc", "user-friendly"]):
         score += 1
-
-    # 3 Completeness — has conditions
     if any(w in req for w in ["if", "when", "within", "under", "before", "after"]):
         score += 1
-
-    # 4 Consistency
     if not ("must not" in req and "must" in req):
         score += 1
-
-    # 5 Feasibility
     if not any(w in req for w in ["always", "never fail", "perfect", "100% secure"]):
         score += 1
-
-    # 6 Verifiability — has measurable terms
     if any(w in req for w in ["seconds", "ms", "%", "response time", "latency"]):
         score += 1
-
-    # 7 Traceability
     if any(w in req for w in ["shall", "must"]):
         score += 1
-
-    # 8 Modifiability — concise
     if len(req.split()) < 40:
         score += 1
-
-    # 9 Atomicity — single concern
     if req.count(" and ") <= 1:
         score += 1
-
-    # 10 Structured Language
     if req.startswith(("the system", "the application", "the software")):
         score += 1
-
-    # 11 Unambiguity
     if not any(w in req for w in ["maybe", "possibly", "should ideally"]):
         score += 1
-
-    # 12 Testability
     if any(w in req for w in ["verify", "validate", "measure"]):
         score += 1
-
-    # 13 Security Awareness
     if "encrypt" in req or "authentication" in req:
         score += 1
-
-    # 14 User Story Format
     if "as a" in req and "i want" in req:
         score += 1
-
-    # 15 Performance Constraint
     if any(w in req for w in ["within", "throughput", "latency"]):
         score += 1
 
     return round((score / 15) * 10)
 
 # ==========================
-# RQI — LLM-BASED
-# Calls one or more models and averages their scores
+# RQI - LLM-BASED
 # ==========================
+
 def calculate_rqi_llm(requirement: str, model_fns: list) -> float:
-    """
-    model_fns: list of (model_fn, model_name) tuples
-    Each model_fn(prompt, technique) should return a plain string.
-    Returns average RQI score from all models, or None if all fail.
-    """
     prompt = f"""Evaluate the quality of this software requirement.
 
 Requirement:
@@ -339,13 +300,9 @@ RQI: 7.5
 
 # ==========================
 # COMBINED RQI
-# Blends rule-based + LLM scores
 # ==========================
+
 def calculate_combined_rqi(requirement: str, model_fns: list = None) -> dict:
-    """
-    Returns dict with rule_score, llm_score, final_score.
-    If model_fns is None or empty, uses only rule-based.
-    """
     rule_score = calculate_rqi_rule_based(requirement)
     llm_score  = None
     final      = float(rule_score)
@@ -355,7 +312,6 @@ def calculate_combined_rqi(requirement: str, model_fns: list = None) -> dict:
         if llm_score is not None:
             final = round((rule_score + llm_score) / 2, 1)
 
-    # Generate quality label
     if final >= 8:
         label = "Excellent"
         color = "green"
@@ -370,21 +326,18 @@ def calculate_combined_rqi(requirement: str, model_fns: list = None) -> dict:
         color = "red"
 
     return {
-        "rule_score": rule_score,
-        "llm_score":  llm_score,
+        "rule_score":  rule_score,
+        "llm_score":   llm_score,
         "final_score": final,
-        "label": label,
-        "color": color
+        "label":       label,
+        "color":       color
     }
 
 # ==========================
 # CRITERIA BREAKDOWN
-# Returns which of the 15 criteria passed/failed
 # ==========================
+
 def get_rqi_criteria_breakdown(requirement: str) -> list:
-    """
-    Returns list of dicts: [{"name": ..., "passed": True/False, "description": ...}]
-    """
     req = requirement.lower().strip()
 
     criteria = [
@@ -427,7 +380,7 @@ def get_rqi_criteria_breakdown(requirement: str) -> list:
         {
             "name": "Modifiability",
             "passed": len(req.split()) < 40,
-            "description": "Concise — under 40 words"
+            "description": "Concise - under 40 words"
         },
         {
             "name": "Atomicity",

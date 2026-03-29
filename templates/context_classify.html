@@ -59,6 +59,7 @@
                     <textarea id="contextStoryInput" rows="4"
                         class="w-full mt-1 themed-input rounded-xl p-4 text-base focus:ring-2 focus:ring-purple-500 transition-all placeholder-gray-400 dark:placeholder-gray-600 resize-none shadow-inner"
                         placeholder="e.g., The system shall process payments within 3 seconds."></textarea>
+                    <!-- ★ Inline ambiguity panel auto-injected here by ambiguity.js (auto-wires to #contextStoryInput) -->
                 </div>
 
                 <!-- Model + Strategy -->
@@ -347,6 +348,12 @@
                     </svg>
                     Run Batch Classification
                 </button>
+                <!-- ★ Ambiguity scan button — shown after CSV is parsed -->
+                <button id="ctxCsvAmbiBtn" onclick="runCtxCsvAmbiScan()"
+                    class="hidden items-center gap-2 text-xs font-bold px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-white transition shadow">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+                    Scan Ambiguity
+                </button>
                 <button onclick="downloadCsvResults()" id="csvDownloadBtn"
                     class="hidden bg-green-600 hover:bg-green-500 text-white font-semibold py-2.5 px-4 rounded-xl transition-all flex items-center gap-2 text-sm">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -356,6 +363,8 @@
                     Download CSV
                 </button>
             </div>
+            <!-- ★ Ambiguity panel for context CSV batch -->
+            <div id="ctxCsvAmbiContainer" class="mt-2"></div>
         </div>
 
         <!-- RIGHT: Batch Results -->
@@ -448,10 +457,7 @@
         </div>
     </div>
 </div>
-
 <script>
-// Domain metadata passed from Flask
-
 
 // Simpler approach — hardcode in JS since it matches context_utils.py
 const DOMAINS = {
@@ -488,6 +494,16 @@ function updateDomainPreview() {
 // Run on page load
 updateDomainPreview();
 
+// ── Utility Functions ──────────────────────────────────────────
+function isValidUserStory(story) {
+    const lower = story.toLowerCase().trim();
+    // Must start with "as a"
+    if (!lower.startsWith('as a')) return false;
+    // Must contain "i want" or "i need"
+    if (!lower.includes('i want') && !lower.includes('i need')) return false;
+    return true;
+}
+
 // ── Classify with Context ────────────────────────────────────
 async function runContextClassify() {
     const story    = document.getElementById('contextStoryInput').value.trim();
@@ -498,6 +514,9 @@ async function runContextClassify() {
     hideContextError();
 
     if (!story) { showContextError("Please enter a requirement."); return; }
+
+    // Validate user story format
+    if (!isValidUserStory(story)) { showContextError("Please enter a valid user story (e.g., 'As a user, I want...')."); return; }
 
     document.getElementById('contextPlaceholder').classList.add('hidden');
     document.getElementById('contextResultCard').classList.add('hidden');
@@ -527,6 +546,9 @@ async function runContextClassify() {
 async function runRQIOnly() {
     const story = document.getElementById('contextStoryInput').value.trim();
     if (!story) { showContextError("Please enter a requirement."); return; }
+
+    // Validate user story format
+    if (!isValidUserStory(story)) { showContextError("Please enter a valid user story (e.g., 'As a user, I want...')."); return; }
 
     hideContextError();
     document.getElementById('contextPlaceholder').classList.add('hidden');
@@ -723,6 +745,11 @@ function parseCsvFile(file) {
         document.getElementById('csvDropLabel').textContent   = '✓ ' + file.name;
         document.getElementById('csvFileInfo').classList.remove('hidden');
 
+        // ★ Show ambiguity scan button now that CSV is loaded
+        const ambiBtn = document.getElementById('ctxCsvAmbiBtn');
+        ambiBtn.classList.remove('hidden');
+        ambiBtn.classList.add('flex');
+
         // Mini preview table
         const preview = csvParsedRows.slice(0, 3);
         const tbl = document.getElementById('csvPreviewTable');
@@ -746,6 +773,11 @@ function clearCsvFile() {
     document.getElementById('csvSummaryCard').classList.add('hidden');
     document.getElementById('csvResultsTableCard').classList.add('hidden');
     document.getElementById('csvPlaceholder').classList.remove('hidden');
+    // ★ Hide ambiguity UI
+    const ambiBtn = document.getElementById('ctxCsvAmbiBtn');
+    ambiBtn.classList.add('hidden');
+    ambiBtn.classList.remove('flex');
+    document.getElementById('ctxCsvAmbiContainer').innerHTML = '';
     hideCsvError();
 }
 
@@ -907,6 +939,13 @@ function downloadCsvResults() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+}
+
+// ★ Ambiguity scan for context CSV batch
+async function runCtxCsvAmbiScan() {
+    if (!csvParsedRows.length) { alert("No stories loaded. Upload a CSV first."); return; }
+    const stories = csvParsedRows.map(r => r.story).filter(Boolean);
+    await Ambiguity.runBatchScan(stories, document.getElementById('ctxCsvAmbiContainer'), 'ctxCsvAmbiPanel');
 }
 
 // ── Error helpers ──

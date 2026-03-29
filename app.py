@@ -20,9 +20,10 @@ from authlib.integrations.flask_client import OAuth
 from sqlalchemy import func
 from similarity_grouping import group_requirements
 from code_integration import classify
-from models import db, User, BatchRun, BatchResult, RequirementHistory, Feedback
+from models import db, User, BatchRun, BatchResult, RequirementHistory, Feedback, Annotation
 from keyword_highlighter import highlight_keywords
 import random
+from ambiguity_detector import detect_ambiguity, report_to_dict
 # =========================
 # Adaptive Cache System
 # =========================
@@ -286,7 +287,8 @@ def get_cached_or_compute(story, model, strategy, backend_model, technique):
     latency = round(time.time() - start_t, 2)
 
     if status_code != 200:
-        return {"error": raw_response}
+        error_msg = raw_response.get("error", str(raw_response)) if isinstance(raw_response, dict) else str(raw_response)
+        return {"error": error_msg}
 
     result = parse_backend_response(raw_response, model, strategy, latency)
 
@@ -587,7 +589,7 @@ def batch():
                                     "latency": res.get("latency", 0),
                                     "error": res["error"]
                                     }
-                   
+                                    
                             result_row = BatchResult(
                                 batch_run_id=batch_run_id,
                                 user_id=user_id,
@@ -710,7 +712,6 @@ def batch():
             # =========================
             # # FINAL SUMMARY
             # # =========================
-
             yield json.dumps({
                 "type": "summary",
                 "summary": {
@@ -1045,6 +1046,8 @@ def run_evaluation():
     file     = request.files['file']
     model    = request.form.get('model', 'ChatGPT')
     strategy = request.form.get('strategy', 'Zero-shot')
+    limit    = int(request.form.get('limit', 10))  # Retrieve the limit parameter
+    print(f"Limit received: {limit}")  # Debug print
 
     model_map    = MODEL_MAP
     strategy_map = {**STRATEGY_MAP, "Role-Based": "role_based", "ReAct": "react"}
@@ -1081,6 +1084,10 @@ def run_evaluation():
 
     df['true_label'] = df['label'].apply(normalize_label)
     has_type_col     = 'nfr_type' in df.columns
+
+    # Apply the limit to the number of stories to process
+    df = df.head(limit)
+    print(f"Number of stories to process: {len(df)}")  # Debug print
 
     # --- Run classification for each story ---
     y_true, y_pred, details = [], [], []
@@ -2029,6 +2036,280 @@ def batch_pending():
     return jsonify({'pending': False})
 
 
+# =========================
+# Annotation Routes
+# =========================
+ 
+@app.route('/annotate', methods=['GET'])
+@login_required
+def annotate():
+    return render_template('annotate.html', page='annotate')
+ 
+ 
+@app.route('/api/annotation/result/<int:result_id>', methods=['GET'])
+@login_required
+def get_result_for_annotation(result_id):
+    """Load a single BatchResult to pre-fill the annotation form."""
+    r = BatchResult.query.get_or_404(result_id)
+    return jsonify({
+        'id':             r.id,
+        'story':          r.story,
+        'classification': r.classification,
+        'category':       r.category,
+        'model':          r.model,
+    })
+ 
+ 
+@app.route('/api/annotations', methods=['POST'])
+@login_required
+def create_annotation():
+    """Save a new human annotation."""
+    data = request.get_json() or {}
+ 
+    story      = (data.get('story') or '').strip()
+    true_label = (data.get('true_label') or '').strip().upper()
+ 
+    if not story:
+        return jsonify({'error': 'story is required'}), 400
+    if true_label not in ('FR', 'NFR'):
+        return jsonify({'error': 'true_label must be FR or NFR'}), 400
+ 
+    model_label = data.get('model_label')
+    agrees      = None
+    if model_label:
+        agrees = (true_label == model_label.strip().upper())
+ 
+    anno = Annotation(
+        user_id           = current_user.id,
+        story             = story,
+        true_label        = true_label,
+        nfr_type          = data.get('nfr_type') or None,
+        confidence        = data.get('confidence') or None,
+        notes             = data.get('notes') or None,
+        batch_result_id   = data.get('batch_result_id') or None,
+        model_label       = model_label or None,
+        model_name        = data.get('model_name') or None,
+        agrees_with_model = agrees,
+        status            = 'pending',
+    )
+    db.session.add(anno)
+    db.session.commit()
+    return jsonify({'id': anno.id, 'message': 'Annotation saved'}), 201
+ 
+ 
+@app.route('/api/annotations', methods=['GET'])
+@login_required
+def list_annotations():
+    """Paginated list of the current user's annotations with optional filters."""
+    page     = request.args.get('page',     1,   type=int)
+    per_page = request.args.get('per_page', 25,  type=int)
+    label    = request.args.get('label',    None)
+    status   = request.args.get('status',   None)
+    agree    = request.args.get('agree',    None)
+ 
+    q = Annotation.query.filter_by(user_id=current_user.id)
+ 
+    if label:
+        q = q.filter(Annotation.true_label == label.upper())
+    if status:
+        q = q.filter(Annotation.status == status)
+    if agree == 'agree':
+        q = q.filter(Annotation.agrees_with_model == True)
+    elif agree == 'disagree':
+        q = q.filter(Annotation.agrees_with_model == False)
+ 
+    total = q.count()
+    items = q.order_by(Annotation.annotated_at.desc()) \
+              .offset((page - 1) * per_page).limit(per_page).all()
+ 
+    return jsonify({
+        'total': total,
+        'page':  page,
+        'pages': max(1, (total + per_page - 1) // per_page),
+        'items': [_anno_dict(a) for a in items],
+    })
+ 
+ 
+@app.route('/api/annotations/queue', methods=['GET'])
+@login_required
+def annotation_queue():
+    """
+    Returns BatchResult rows the current user has NOT yet annotated.
+    Powers the quick-queue panel on the annotation form.
+    """
+    limit = request.args.get('limit', 20, type=int)
+ 
+    annotated_result_ids = db.session.query(Annotation.batch_result_id).filter(
+        Annotation.user_id == current_user.id,
+        Annotation.batch_result_id != None   # noqa: E711
+    ).subquery()
+ 
+    results = (
+        BatchResult.query
+        .filter(~BatchResult.id.in_(annotated_result_ids))
+        .filter(BatchResult.classification != 'Error')
+        .order_by(BatchResult.id.desc())
+        .limit(limit)
+        .all()
+    )
+ 
+    return jsonify({'items': [
+        {
+            'id':             r.id,
+            'story':          r.story,
+            'classification': r.classification,
+            'model':          r.model,
+        }
+        for r in results
+    ]})
+ 
+ 
+@app.route('/api/annotations/stats', methods=['GET'])
+@login_required
+def annotation_stats():
+    """Summary counts for the stats bar at the top of the annotation page."""
+    base     = Annotation.query.filter_by(user_id=current_user.id)
+    total    = base.count()
+    agree    = base.filter(Annotation.agrees_with_model == True).count()   # noqa: E712
+    disagree = base.filter(Annotation.agrees_with_model == False).count()  # noqa: E712
+    pending  = base.filter(Annotation.status == 'pending').count()
+    return jsonify({
+        'total':    total,
+        'agree':    agree,
+        'disagree': disagree,
+        'pending':  pending,
+    })
+ 
+ 
+@app.route('/api/annotations/<int:anno_id>', methods=['PATCH'])
+@login_required
+def update_annotation(anno_id):
+    """Edit label, NFR type, status, or notes on an existing annotation."""
+    anno = Annotation.query.filter_by(id=anno_id, user_id=current_user.id).first_or_404()
+    data = request.get_json() or {}
+ 
+    if 'true_label' in data:
+        lbl = data['true_label'].strip().upper()
+        if lbl not in ('FR', 'NFR'):
+            return jsonify({'error': 'Invalid label'}), 400
+        anno.true_label = lbl
+        if anno.model_label:
+            anno.agrees_with_model = (lbl == anno.model_label.strip().upper())
+ 
+    if 'nfr_type' in data:
+        anno.nfr_type = data['nfr_type'] or None
+    if 'status' in data and data['status'] in ('pending', 'reviewed', 'exported'):
+        anno.status = data['status']
+    if 'notes' in data:
+        anno.notes = data['notes'] or None
+ 
+    db.session.commit()
+    return jsonify({'message': 'Updated', 'annotation': _anno_dict(anno)})
+ 
+ 
+@app.route('/api/annotations/<int:anno_id>', methods=['DELETE'])
+@login_required
+def delete_annotation(anno_id):
+    """Delete an annotation (owner only)."""
+    anno = Annotation.query.filter_by(id=anno_id, user_id=current_user.id).first_or_404()
+    db.session.delete(anno)
+    db.session.commit()
+    return jsonify({'message': 'Deleted'})
+ 
+ 
+@app.route('/api/annotations/export', methods=['GET'])
+@login_required
+def export_annotations():
+    """Return all annotations for the current user as JSON (for CSV download)."""
+    items = (
+        Annotation.query
+        .filter_by(user_id=current_user.id)
+        .order_by(Annotation.annotated_at.asc())
+        .all()
+    )
+    # ── Auto-promote status to 'exported' ──────────────────────────────
+    changed = False
+    for a in items:
+        if a.status != 'exported':
+            a.status = 'exported'
+            changed  = True
+    if changed:
+        db.session.commit()
+    # ────────────────────────────────────────────────────────────────────
+    return jsonify({'rows': [_anno_dict(a) for a in items]})
+ 
+ 
+def _anno_dict(a):
+    """Serialise an Annotation row to a plain dict."""
+    return {
+        'id':                a.id,
+        'story':             a.story,
+        'true_label':        a.true_label,
+        'nfr_type':          a.nfr_type,
+        'confidence':        a.confidence,
+        'notes':             a.notes,
+        'batch_result_id':   a.batch_result_id,
+        'model_label':       a.model_label,
+        'model_name':        a.model_name,
+        'agrees_with_model': a.agrees_with_model,
+        'status':            a.status,
+        'annotated_at':      a.annotated_at.isoformat() if a.annotated_at else None,
+    }
+    
+@app.route('/api/detect_ambiguity', methods=['POST'])
+@login_required
+def detect_ambiguity_route():
+    """
+    Universal ambiguity detection endpoint — used by every page.
+ 
+    Single mode:
+        POST  { "requirement": "The system should be fast." }
+        →     { ambiguity_score, quality_label, warnings, ... }
+ 
+    Batch mode (CSV upload pages):
+        POST  { "requirements": ["req1", "req2", ...] }
+        →     { summary: {...}, results: [...] }
+    """
+    from ambiguity_detector import detect_ambiguity, report_to_dict
+ 
+    data = request.get_json(silent=True) or {}
+ 
+    # ── Single requirement ──────────────────────────────────
+    if "requirement" in data:
+        req = (data.get("requirement") or "").strip()
+        if not req:
+            return jsonify({"error": "requirement is required"}), 400
+        return jsonify(report_to_dict(detect_ambiguity(req)))
+ 
+    # ── Batch requirements ──────────────────────────────────
+    if "requirements" in data:
+        reqs = data.get("requirements")
+        if not isinstance(reqs, list) or len(reqs) == 0:
+            return jsonify({"error": "requirements must be a non-empty list"}), 400
+        if len(reqs) > 500:
+            return jsonify({"error": "Maximum 500 requirements per batch call"}), 400
+ 
+        results = [report_to_dict(detect_ambiguity((r or "").strip())) for r in reqs]
+ 
+        total        = len(results)
+        ambiguous    = sum(1 for r in results if r["is_ambiguous"])
+        avg_score    = round(sum(r["ambiguity_score"] for r in results) / total, 1) if total else 0
+        label_counts: dict = {}
+        for r in results:
+            label_counts[r["quality_label"]] = label_counts.get(r["quality_label"], 0) + 1
+ 
+        return jsonify({
+            "summary": {
+                "total":        total,
+                "ambiguous":    ambiguous,
+                "clean":        total - ambiguous,
+                "avg_score":    avg_score,
+                "label_counts": label_counts,
+            },
+            "results": results,
+        })
+ 
+    return jsonify({"error": "Provide 'requirement' or 'requirements' in the request body"}), 400
 # =========================
 # Run
 # =========================

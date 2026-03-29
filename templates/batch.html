@@ -71,11 +71,19 @@
                     </svg>
                     <span>Remove</span>
                 </button>
+                <!-- ★ AMBIGUITY SCAN BUTTON — shown after file upload -->
+                <button id="batchAmbiBtn" onclick="runBatchAmbiScan()"
+                    class="flex items-center space-x-2 bg-amber-100 dark:bg-amber-600/20 hover:bg-amber-200 dark:hover:bg-amber-600/40 text-amber-600 dark:text-amber-300 px-4 py-2 rounded-lg transition-colors border border-amber-200 dark:border-amber-500/30">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+                    <span>Scan Ambiguity</span>
+                </button>
             </div>
         </div>
 
         <input type="file" id="fileInput" class="hidden" accept=".csv">
     </div>
+    <!-- ★ AMBIGUITY BATCH PANEL — injected here by JS -->
+    <div id="batchAmbiContainer"></div>
 
     <!-- Preview Modal -->
     <div id="previewModal"
@@ -141,12 +149,12 @@
                     <span id="volumeValue" class="text-gray-900 dark:text-white font-mono w-8">10</span>
                 </div>
                 <!-- 🔴 Error Banner -->
-<div id="batchErrorBanner" class="hidden mb-4 p-3 rounded-lg bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
-  <span id="batchErrorText"></span>
-</div>
+                <div id="batchErrorBanner" class="hidden mb-4 p-3 rounded-lg bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
+                    <span id="batchErrorText"></span>
+                </div>
 
-<!-- Your existing button -->
-<button id="submitBtn">Start Processing</button>
+                <!-- Your existing button -->
+                <button id="submitBtn">Start Processing</button>
                 <button onclick="processBatch()" class="bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg whitespace-nowrap">
                     Process Batch
                 </button>
@@ -280,5 +288,40 @@
 
     <!-- Results -->
     <div id="groupResults" class="space-y-4"></div>
-</div>
+
+<script>
+// ── Global: store parsed stories for ambiguity scan ──────────
+// Your existing dashboard.js fills window.batchStories when a file is parsed.
+// We hook into fileActionBar becoming visible.
+document.addEventListener("DOMContentLoaded", () => {
+    const bar = document.getElementById("fileActionBar");
+    if (bar) {
+        new MutationObserver(() => {
+            if (!bar.classList.contains("hidden")) {
+                // file loaded — ambiguity button already visible in fileActionBar
+            } else {
+                document.getElementById("batchAmbiContainer").innerHTML = "";
+            }
+        }).observe(bar, { attributes: true, attributeFilter: ["class"] });
+    }
+});
+ 
+// ── Run batch ambiguity scan ─────────────────────────────────
+async function runBatchAmbiScan() {
+    // Collect stories. Adjust variable name to match what your dashboard.js stores.
+    const stories = (
+        window.batchStories ||
+        (window.uploadedCSVRows && window.uploadedCSVRows.map(r => r.user_story || r.story || Object.values(r)[0])) ||
+        []
+    ).filter(Boolean);
+ 
+    if (!stories.length) {
+        alert("No stories loaded yet. Please upload a CSV first.");
+        return;
+    }
+ 
+    const container = document.getElementById("batchAmbiContainer");
+    await Ambiguity.runBatchScan(stories, container, "batchAmbiPanel");
+}
+</script>
 {% endblock %}

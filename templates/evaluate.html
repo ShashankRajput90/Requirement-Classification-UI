@@ -1,33 +1,25 @@
+
 {% extends "base.html" %}
 
 {% block content %}
 <div class="space-y-6">
 
-    <!-- Header -->
     <div class="text-center">
         <h2 class="text-3xl font-bold text-gray-900 dark:text-white">Ground Truth Evaluation</h2>
-        <p class="text-gray-600 dark:text-gray-400 mt-2">
-            Upload a labeled dataset and measure exactly how accurate each model is.
-        </p>
+        <p class="text-gray-600 dark:text-gray-400 mt-2">Upload a labeled dataset and measure exactly how accurate each model is.</p>
     </div>
 
-    <!-- Instructions Banner -->
     <div class="glass-card p-4 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700/50">
         <div class="flex items-start gap-3">
             <svg class="w-5 h-5 text-blue-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
             </svg>
             <div class="text-sm text-blue-800 dark:text-blue-300">
                 <strong>CSV Format Required:</strong> Your file must have a
                 <code class="bg-blue-100 dark:bg-blue-800/50 px-1 rounded">user_story</code> column and a
                 <code class="bg-blue-100 dark:bg-blue-800/50 px-1 rounded">label</code> column
                 (values: <code class="bg-blue-100 dark:bg-blue-800/50 px-1 rounded">FR</code> /
-                <code class="bg-blue-100 dark:bg-blue-800/50 px-1 rounded">NFR</code> or
-                <code class="bg-blue-100 dark:bg-blue-800/50 px-1 rounded">Yes</code> /
-                <code class="bg-blue-100 dark:bg-blue-800/50 px-1 rounded">No</code>).
-                Optionally include <code class="bg-blue-100 dark:bg-blue-800/50 px-1 rounded">nfr_type</code> for type accuracy.
-                Max 50 rows.
+                <code class="bg-blue-100 dark:bg-blue-800/50 px-1 rounded">NFR</code>). Max 50 rows.
             </div>
         </div>
     </div>
@@ -37,25 +29,73 @@
 
         <!-- Drop Zone -->
         <div id="evalDropZone"
-            class="border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-xl p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:border-blue-400 transition-colors relative"
+            class="glass-card rounded-2xl p-8 border-dashed border-2 border-gray-300 dark:border-slate-600 hover:border-blue-500 transition-colors cursor-pointer group relative bg-white/50 dark:bg-slate-800/50"
             onclick="document.getElementById('evalFileInput').click()">
-            <div id="evalUploadPrompt">
-                <svg class="w-10 h-10 text-blue-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
-                </svg>
-                <p class="font-medium text-gray-700 dark:text-white">Drop your labeled CSV here or click to browse</p>
-                <p class="text-sm text-gray-400 mt-1">Must contain <code>user_story</code> and <code>label</code> columns</p>
+
+            <!-- Upload Prompt (default) -->
+            <div id="evalUploadPrompt" class="flex flex-col items-center justify-center space-y-4 transition-all">
+                <div class="p-4 bg-gray-100 dark:bg-slate-800 rounded-full group-hover:bg-blue-500/20 transition-colors">
+                    <svg class="w-8 h-8 text-blue-500 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                    </svg>
+                </div>
+                <div class="text-center">
+                    <p class="text-lg font-medium text-gray-900 dark:text-white">Drop your labeled CSV here or click to browse</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Must contain <code>user_story</code> and <code>label</code> columns</p>
+                </div>
             </div>
-            <div id="evalFileInfo" class="hidden items-center gap-3">
-                <svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
-                <span id="evalFileName" class="font-medium text-gray-900 dark:text-white"></span>
-                <button onclick="clearEvalFile(event)"
-                    class="text-red-400 hover:text-red-600 text-xs underline ml-2">Remove</button>
+
+            <!-- File Action Bar (shown after upload) -->
+            <div id="evalFileActionBar" class="hidden flex-col items-center space-y-5 w-full py-6">
+                <div class="flex items-center gap-3 bg-white dark:bg-slate-800 px-4 py-2 rounded-xl border border-gray-200 dark:border-slate-600 shadow-sm">
+                    <div class="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                        </svg>
+                    </div>
+                    <span id="evalFileName" class="text-gray-900 dark:text-white font-semibold">batch_1.csv</span>
+                    <span id="evalRowCount" class="text-xs text-gray-400"></span>
+                </div>
+                
+                <div class="flex items-center gap-3">
+                    <button id="evalPreviewBtn" onclick="openEvalPreview(event)"
+                        class="flex items-center gap-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 px-5 py-2 rounded-lg transition-colors border border-blue-500/20">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                        </svg>
+                        <span class="text-sm font-medium">Preview</span>
+                    </button>
+                    <button onclick="clearEvalFile(event)"
+                        class="flex items-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 px-5 py-2 rounded-lg transition-colors border border-red-500/20">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                        <span class="text-sm font-medium">Remove</span>
+                    </button>
+                </div>
             </div>
+
             <input type="file" id="evalFileInput" class="hidden" accept=".csv">
+        </div>
+
+        <!-- Stories Slider (shown after file upload) -->
+        <div id="evalSliderSection" class="hidden border border-gray-200 dark:border-slate-700 rounded-xl p-4 bg-gray-50 dark:bg-slate-900/30">
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div class="mb-2 sm:mb-0">
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Stories to Evaluate</label>
+                    <p class="text-xs text-gray-400 mt-0.5">Drag to select how many rows from your CSV to process</p>
+                </div>
+                <div class="flex flex-row items-center gap-2 w-full sm:w-auto">
+                    <input type="range" id="evalVolumeSlider" min="2" max="50" value="10"
+                        class="flex-1 accent-green-500 min-w-0"
+                        oninput="updateEvalSliderLabel(this.value)">
+                    <div class="flex flex-col items-center min-w-[52px] ml-2">
+                        <span id="evalVolumeValue" class="text-lg font-bold text-gray-900 dark:text-white font-mono">10</span>
+                        <span id="evalVolumeTotal" class="text-xs text-gray-400">/ 50 rows</span>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Model + Strategy selectors -->
@@ -83,26 +123,51 @@
             </div>
         </div>
 
-        <!-- Error Banner -->
-        <div id="evalError"
-            class="hidden items-center gap-3 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
-            <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-            </svg>
+        <div id="evalError" class="hidden items-center gap-3 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+            <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
             <span id="evalErrorText"></span>
         </div>
 
-        <!-- Run Button -->
         <div class="flex justify-end pt-2 border-t border-gray-200 dark:border-slate-700">
             <button onclick="runEvaluation()" id="evalRunBtn"
                 class="bg-green-600 hover:bg-green-500 text-white font-semibold py-2.5 px-8 rounded-xl transition-all shadow-lg flex items-center gap-2">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
-                </svg>
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
                 Run Evaluation
             </button>
+        </div>
+    </div>
+
+    <!-- Preview Modal -->
+    <div id="evalPreviewModal"
+        class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+        <div class="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-2xl w-full max-w-4xl max-h-[80vh] flex flex-col shadow-2xl">
+            <div class="p-5 border-b border-gray-200 dark:border-slate-800 flex justify-between items-center">
+                <div>
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-white">CSV Preview</h3>
+                    <p id="evalPreviewSubtitle" class="text-xs text-gray-400 mt-0.5"></p>
+                </div>
+                <button onclick="closeEvalPreview()"
+                    class="text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="overflow-auto flex-1">
+                <table class="w-full text-left text-sm text-gray-700 dark:text-gray-300">
+                    <thead class="sticky top-0 bg-gray-100 dark:bg-slate-800 text-xs uppercase font-semibold text-gray-500 dark:text-gray-400 z-10">
+                        <tr id="evalPreviewHeaderRow"></tr>
+                    </thead>
+                    <tbody id="evalPreviewBody" class="divide-y divide-gray-100 dark:divide-slate-800"></tbody>
+                </table>
+            </div>
+            <div class="p-4 border-t border-gray-200 dark:border-slate-800 flex justify-between items-center">
+                <p class="text-xs text-gray-400">Showing first <strong id="evalPreviewShownCount">—</strong> rows of <strong id="evalPreviewTotalCount">—</strong></p>
+                <button onclick="closeEvalPreview()"
+                    class="text-sm text-gray-500 hover:text-gray-900 dark:hover:text-white px-4 py-1.5 rounded-lg border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors">
+                    Close
+                </button>
+            </div>
         </div>
     </div>
 
@@ -113,28 +178,19 @@
             <div class="absolute inset-0 border-4 border-green-500 rounded-full border-t-transparent animate-spin"></div>
         </div>
         <p class="text-gray-400 animate-pulse">Classifying stories and computing metrics...</p>
-        <p class="text-gray-500 text-sm mt-1">This may take a minute depending on dataset size.</p>
+        <p id="evalLoadingDetail" class="text-gray-500 text-sm mt-1">This may take a minute depending on dataset size.</p>
     </div>
 
-    <!-- ===== RESULTS SECTION ===== -->
+    <!-- Results Section -->
     <div id="evalResults" class="hidden space-y-6">
-
-        <!-- Run Summary Banner -->
         <div class="glass-card p-4 rounded-xl bg-white/70 dark:bg-slate-800/70 flex flex-wrap gap-4 items-center justify-between">
-            <div>
-                <span id="evalSummaryText" class="text-sm text-gray-600 dark:text-gray-300"></span>
-            </div>
-            <button onclick="exportEvalCSV()"
-                class="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 hover:underline">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                </svg>
+            <div><span id="evalSummaryText" class="text-sm text-gray-600 dark:text-gray-300"></span></div>
+            <button onclick="exportEvalCSV()" class="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 hover:underline">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                 Export Results CSV
             </button>
         </div>
 
-        <!-- Scorecard Row -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div class="glass-card p-5 rounded-2xl bg-white/70 dark:bg-slate-800/70 text-center border-t-4 border-blue-500">
                 <p class="text-xs text-gray-500 uppercase font-bold mb-1">Accuracy</p>
@@ -154,66 +210,39 @@
             </div>
         </div>
 
-        <!-- Confusion Matrix + Confidence Cards -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-            <!-- Confusion Matrix -->
             <div class="glass-card p-6 rounded-2xl bg-white/70 dark:bg-slate-800/70">
                 <h3 class="font-semibold text-gray-900 dark:text-white mb-4">Confusion Matrix</h3>
                 <div class="grid grid-cols-3 gap-2 text-center text-sm">
-                    <!-- Header row -->
                     <div></div>
                     <div class="text-gray-400 font-semibold text-xs">Pred: FR</div>
                     <div class="text-gray-400 font-semibold text-xs">Pred: NFR</div>
-                    <!-- Row 1: Actual FR -->
                     <div class="text-gray-400 font-semibold text-xs flex items-center">Actual: FR</div>
-                    <div id="cmTN"
-                        class="p-4 rounded-xl bg-green-100 dark:bg-green-900/30 font-bold text-2xl text-green-600 dark:text-green-400">-</div>
-                    <div id="cmFP"
-                        class="p-4 rounded-xl bg-red-100 dark:bg-red-900/30 font-bold text-2xl text-red-500">-</div>
-                    <!-- Row 2: Actual NFR -->
+                    <div id="cmTN" class="p-4 rounded-xl bg-green-100 dark:bg-green-900/30 font-bold text-2xl text-green-600 dark:text-green-400">-</div>
+                    <div id="cmFP" class="p-4 rounded-xl bg-red-100 dark:bg-red-900/30 font-bold text-2xl text-red-500">-</div>
                     <div class="text-gray-400 font-semibold text-xs flex items-center">Actual: NFR</div>
-                    <div id="cmFN"
-                        class="p-4 rounded-xl bg-red-100 dark:bg-red-900/30 font-bold text-2xl text-red-500">-</div>
-                    <div id="cmTP"
-                        class="p-4 rounded-xl bg-green-100 dark:bg-green-900/30 font-bold text-2xl text-green-600 dark:text-green-400">-</div>
+                    <div id="cmFN" class="p-4 rounded-xl bg-red-100 dark:bg-red-900/30 font-bold text-2xl text-red-500">-</div>
+                    <div id="cmTP" class="p-4 rounded-xl bg-green-100 dark:bg-green-900/30 font-bold text-2xl text-green-600 dark:text-green-400">-</div>
                 </div>
                 <div class="mt-3 flex gap-4 text-xs text-gray-500">
                     <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-green-400 inline-block"></span>Correct</span>
                     <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-red-400 inline-block"></span>Wrong</span>
                 </div>
             </div>
-
-            <!-- Confidence Analysis -->
             <div class="glass-card p-6 rounded-2xl bg-white/70 dark:bg-slate-800/70 space-y-4">
                 <h3 class="font-semibold text-gray-900 dark:text-white">Confidence Analysis</h3>
-
                 <div>
-                    <div class="flex justify-between text-sm mb-1">
-                        <span class="text-gray-500">Avg confidence on ✅ correct predictions</span>
-                        <span id="confCorrect" class="font-bold text-green-500">-</span>
-                    </div>
-                    <div class="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2.5">
-                        <div id="confCorrectBar" class="bg-green-500 h-2.5 rounded-full transition-all" style="width:0%"></div>
-                    </div>
+                    <div class="flex justify-between text-sm mb-1"><span class="text-gray-500">Avg confidence on ✅ correct predictions</span><span id="confCorrect" class="font-bold text-green-500">-</span></div>
+                    <div class="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2.5"><div id="confCorrectBar" class="bg-green-500 h-2.5 rounded-full transition-all" style="width:0%"></div></div>
                 </div>
-
                 <div>
-                    <div class="flex justify-between text-sm mb-1">
-                        <span class="text-gray-500">Avg confidence on ❌ wrong predictions</span>
-                        <span id="confIncorrect" class="font-bold text-red-500">-</span>
-                    </div>
-                    <div class="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2.5">
-                        <div id="confIncorrectBar" class="bg-red-500 h-2.5 rounded-full transition-all" style="width:0%"></div>
-                    </div>
+                    <div class="flex justify-between text-sm mb-1"><span class="text-gray-500">Avg confidence on ❌ wrong predictions</span><span id="confIncorrect" class="font-bold text-red-500">-</span></div>
+                    <div class="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2.5"><div id="confIncorrectBar" class="bg-red-500 h-2.5 rounded-full transition-all" style="width:0%"></div></div>
                 </div>
-
                 <p class="text-xs text-gray-400 mt-2">
                     A well-calibrated model scores high confidence on correct answers
                     and lower confidence when it's wrong.
                 </p>
-
-                <!-- Type accuracy if available -->
                 <div id="typeAccuracyBlock" class="hidden mt-2 p-3 rounded-lg bg-gray-100 dark:bg-slate-700/50">
                     <p class="text-xs text-gray-500 uppercase font-bold mb-1">NFR Type Accuracy</p>
                     <p id="typeAccuracyVal" class="text-xl font-bold text-blue-500">-</p>
@@ -222,41 +251,25 @@
             </div>
         </div>
 
-        <!-- Error Analysis -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-            <!-- False Positives -->
             <div class="glass-card p-6 rounded-2xl bg-white/70 dark:bg-slate-800/70">
                 <h3 class="font-semibold text-red-500 mb-1 flex items-center gap-2">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01"/>
-                    </svg>
-                    False Positives
-                    <span id="fpCount" class="ml-auto text-sm bg-red-100 dark:bg-red-900/30 text-red-500 px-2 py-0.5 rounded-full">0</span>
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01"/></svg>
+                    False Positives <span id="fpCount" class="ml-auto text-sm bg-red-100 dark:bg-red-900/30 text-red-500 px-2 py-0.5 rounded-full">0</span>
                 </h3>
-                <p class="text-xs text-gray-400 mb-3">Stories that are actually <strong>FR</strong> but the model predicted <strong>NFR</strong></p>
-                <div id="fpList" class="space-y-2 max-h-48 overflow-y-auto text-sm text-gray-600 dark:text-gray-400">
-                    <p class="text-gray-400 italic">None</p>
-                </div>
+                <p class="text-xs text-gray-400 mb-3">Stories that are actually <strong>FR</strong> but predicted <strong>NFR</strong></p>
+                <div id="fpList" class="space-y-2 max-h-48 overflow-y-auto text-sm text-gray-600 dark:text-gray-400"><p class="text-gray-400 italic">None</p></div>
             </div>
-
-            <!-- False Negatives -->
             <div class="glass-card p-6 rounded-2xl bg-white/70 dark:bg-slate-800/70">
                 <h3 class="font-semibold text-orange-500 mb-1 flex items-center gap-2">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01"/>
-                    </svg>
-                    False Negatives
-                    <span id="fnCount" class="ml-auto text-sm bg-orange-100 dark:bg-orange-900/30 text-orange-500 px-2 py-0.5 rounded-full">0</span>
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01"/></svg>
+                    False Negatives <span id="fnCount" class="ml-auto text-sm bg-orange-100 dark:bg-orange-900/30 text-orange-500 px-2 py-0.5 rounded-full">0</span>
                 </h3>
-                <p class="text-xs text-gray-400 mb-3">Stories that are actually <strong>NFR</strong> but the model predicted <strong>FR</strong></p>
-                <div id="fnList" class="space-y-2 max-h-48 overflow-y-auto text-sm text-gray-600 dark:text-gray-400">
-                    <p class="text-gray-400 italic">None</p>
-                </div>
+                <p class="text-xs text-gray-400 mb-3">Stories that are actually <strong>NFR</strong> but predicted <strong>FR</strong></p>
+                <div id="fnList" class="space-y-2 max-h-48 overflow-y-auto text-sm text-gray-600 dark:text-gray-400"><p class="text-gray-400 italic">None</p></div>
             </div>
         </div>
 
-        <!-- Full Per-Story Table -->
         <div class="glass-card rounded-2xl overflow-hidden bg-white/70 dark:bg-slate-800/70">
             <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
                 <h3 class="font-semibold text-gray-900 dark:text-white">Per-Story Breakdown</h3>
@@ -278,15 +291,50 @@
                 </table>
             </div>
         </div>
-
     </div>
 </div>
 
 <script>
-let evalFile = null;
-let evalData = null; // store last result for export
+let evalFile    = null;
+let evalData    = null;
+let evalParsed  = [];   // parsed CSV rows [{col: val, ...}]
+let evalHeaders = [];   // CSV column names
 
-// ── File Handling ───────────────────────────────────────────
+// ── CSV Parser ──────────────────────────────────────────────
+function parseCSV(text) {
+    const lines = text.trim().split(/\r?\n/);
+    if (lines.length < 2) return { headers: [], rows: [] };
+
+    // Handle quoted fields
+    function splitLine(line) {
+        const result = [];
+        let cur = '', inQuote = false;
+        for (let i = 0; i < line.length; i++) {
+            const ch = line[i];
+            if (ch === '"') {
+                if (inQuote && line[i + 1] === '"') { cur += '"'; i++; }
+                else inQuote = !inQuote;
+            } else if (ch === ',' && !inQuote) {
+                result.push(cur.trim()); cur = '';
+            } else {
+                cur += ch;
+            }
+        }
+        result.push(cur.trim());
+        return result;
+    }
+
+    const headers = splitLine(lines[0]);
+    const rows = lines.slice(1).filter(l => l.trim()).map(line => {
+        const vals = splitLine(line);
+        const obj = {};
+        headers.forEach((h, i) => { obj[h] = vals[i] ?? ''; });
+        return obj;
+    });
+    return { headers, rows };
+}
+
+// ── File Handling ─────────────────────────────────────────────
 document.getElementById('evalFileInput').addEventListener('change', function () {
     if (this.files[0]) setEvalFile(this.files[0]);
 });
@@ -302,36 +350,129 @@ dropZone.addEventListener('drop', e => {
 
 function setEvalFile(file) {
     evalFile = file;
-    document.getElementById('evalUploadPrompt').classList.add('hidden');
-    const info = document.getElementById('evalFileInfo');
-    info.classList.remove('hidden');
-    info.classList.add('flex');
-    document.getElementById('evalFileName').textContent = file.name;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const { headers, rows } = parseCSV(e.target.result);
+        evalHeaders = headers;
+        evalParsed  = rows;
+
+        // Update drop zone UI
+        document.getElementById('evalUploadPrompt').classList.add('hidden');
+        const bar = document.getElementById('evalFileActionBar');
+        bar.classList.remove('hidden');
+        bar.classList.add('flex');
+        document.getElementById('evalFileName').textContent = file.name;
+        document.getElementById('evalRowCount').textContent = `(${rows.length} rows)`;
+
+        // Configure slider
+        const max   = Math.min(50, rows.length);
+        const init  = Math.min(50, max);
+        const slider = document.getElementById('evalVolumeSlider');
+        slider.max   = max;
+        slider.value = init;
+        document.getElementById('evalSliderSection').classList.remove('hidden');
+        updateEvalSliderLabel(init);
+    };
+    reader.readAsText(file);
 }
 
 function clearEvalFile(e) {
-    e.stopPropagation();
-    evalFile = null;
+    if (e) e.stopPropagation();
+    evalFile    = null;
+    evalParsed  = [];
+    evalHeaders = [];
     document.getElementById('evalFileInput').value = '';
-    document.getElementById('evalFileInfo').classList.add('hidden');
-    document.getElementById('evalFileInfo').classList.remove('flex');
+
+    const bar = document.getElementById('evalFileActionBar');
+    bar.classList.add('hidden');
+    bar.classList.remove('flex');
     document.getElementById('evalUploadPrompt').classList.remove('hidden');
+    // ★ Hide ambiguity UI
+    const ambiRow = document.getElementById('evalAmbiRow');
+    ambiRow.classList.add('hidden');
+    ambiRow.classList.remove('flex');
+    document.getElementById('evalAmbiContainer').innerHTML = '';
 }
 
+// ★ Run ambiguity scan on parsed stories
+async function runEvalAmbiScan() {
+    if (!evalParsedStories.length) { alert("No stories parsed yet."); return; }
+    const container = document.getElementById("evalAmbiContainer");
+    await Ambiguity.runBatchScan(evalParsedStories, container, "evalAmbiPanel");
+    document.getElementById('evalSliderSection').classList.add('hidden');
+}
+
+// ── Slider Logic ────────────────────────────────────────────
+function updateEvalSliderLabel(val) {
+    val = parseInt(val);
+    document.getElementById('evalVolumeValue').textContent = val;
+    document.getElementById('evalVolumeTotal').textContent = `/ ${evalParsed.length} rows`;
+}
+
+// ── Preview Modal ───────────────────────────────────────────
+function openEvalPreview(e) {
+    if (e) e.stopPropagation();
+    if (!evalParsed.length) return;
+
+    const PREVIEW_LIMIT = 20;
+    const shown = evalParsed.slice(0, PREVIEW_LIMIT);
+
+    // Header
+    const headerRow = document.getElementById('evalPreviewHeaderRow');
+    headerRow.innerHTML = evalHeaders.map(h =>
+        `<th class="px-4 py-3 whitespace-nowrap">${escapeHtml(h)}</th>`
+    ).join('');
+
+    // Body — highlight label column
+    const labelCol = evalHeaders.find(h => ['label', 'Label', 'is_nfr', 'type'].includes(h));
+    const tbody = document.getElementById('evalPreviewBody');
+    tbody.innerHTML = shown.map((row, idx) => {
+        const cells = evalHeaders.map(h => {
+            const val = row[h] ?? '';
+            if (h === labelCol) {
+                const v = val.toLowerCase();
+                const isNFR = ['yes', 'nfr', '1', 'non-functional', 'nonfunctional'].includes(v);
+                const badge = isNFR
+                    ? `<span class="px-2 py-0.5 rounded text-xs font-semibold bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400">${escapeHtml(val)}</span>`
+                    : `<span class="px-2 py-0.5 rounded text-xs font-semibold bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400">${escapeHtml(val)}</span>`;
+                return `<td class="px-4 py-2.5">${badge}</td>`;
+            }
+            return `<td class="px-4 py-2.5 max-w-xs"><p class="truncate" title="${escapeHtml(val)}">${escapeHtml(val)}</p></td>`;
+        }).join('');
+        const bg = idx % 2 === 0 ? '' : 'bg-gray-50 dark:bg-slate-800/40';
+        return `<tr class="${bg}">${cells}</tr>`;
+    }).join('');
+
+    document.getElementById('evalPreviewSubtitle').textContent = `${evalFile.name}`;
+    document.getElementById('evalPreviewShownCount').textContent = shown.length;
+    document.getElementById('evalPreviewTotalCount').textContent = evalParsed.length;
+
+    document.getElementById('evalPreviewModal').classList.remove('hidden');
+}
+
+function closeEvalPreview() {
+    document.getElementById('evalPreviewModal').classList.add('hidden');
+}
+
+// Close modal on backdrop click
+document.getElementById('evalPreviewModal').addEventListener('click', function(e) {
+    if (e.target === this) closeEvalPreview();
+});
+
+// ── Error Helpers ───────────────────────────────────────────
 function showEvalError(msg) {
     const el = document.getElementById('evalError');
     document.getElementById('evalErrorText').textContent = msg;
     el.classList.remove('hidden');
     el.classList.add('flex');
 }
-
 function hideEvalError() {
     const el = document.getElementById('evalError');
     el.classList.add('hidden');
     el.classList.remove('flex');
 }
 
-// ── Run Evaluation ──────────────────────────────────────────
+// ── Run Evaluation ────────────────────────────────────────────
 async function runEvaluation() {
     hideEvalError();
 
@@ -340,34 +481,29 @@ async function runEvaluation() {
         return;
     }
 
+    const limit    = parseInt(document.getElementById('evalVolumeSlider').value) || 10;
     const model    = document.getElementById('evalModel').value;
     const strategy = document.getElementById('evalStrategy').value;
-
-    // UI state
     document.getElementById('evalResults').classList.add('hidden');
     document.getElementById('evalLoading').classList.remove('hidden');
+    document.getElementById('evalLoadingDetail').textContent =
+        `Processing ${limit} stor${limit === 1 ? 'y' : 'ies'} with ${model} · ${strategy}...`;
     document.getElementById('evalRunBtn').disabled = true;
 
     const formData = new FormData();
     formData.append('file', evalFile);
     formData.append('model', model);
     formData.append('strategy', strategy);
+    formData.append('limit', limit);   // ← sent to backend
 
     try {
-        const resp = await fetch('/api/evaluate', {
-            method: 'POST',
-            body: formData
-        });
-
+        const resp = await fetch('/api/evaluate', { method:'POST', body:formData });
         let data;
-
-        // 🔥 SAFE JSON PARSE
         try {
             data = await resp.json();
         } catch (e) {
             const text = await resp.text();
-            console.error("❌ Non-JSON response:", text);
-
+            console.error("Non-JSON response:", text);
             showEvalError("Server returned invalid response (likely login expired or backend error).");
             return;
         }
@@ -379,9 +515,8 @@ async function runEvaluation() {
 
         evalData = data;
         renderResults(data);
-
     } catch (err) {
-        console.error("❌ Fetch error:", err);
+        console.error("Fetch error:", err);
         showEvalError("Network error: " + err.message);
     } finally {
         document.getElementById('evalLoading').classList.add('hidden');
@@ -389,135 +524,86 @@ async function runEvaluation() {
     }
 }
 
-// ── Render Results ──────────────────────────────────────────
 function renderResults(data) {
     const m = data.binary_metrics;
 
-    // Summary text
     document.getElementById('evalSummaryText').innerHTML =
         `Model: <strong>${data.model}</strong> &nbsp;·&nbsp; Strategy: <strong>${data.strategy}</strong> &nbsp;·&nbsp; `
       + `<strong>${data.valid}</strong> stories evaluated`
       + (data.errors > 0 ? ` &nbsp;·&nbsp; <span class="text-red-400">${data.errors} errors</span>` : '');
 
-    // Scorecard
     document.getElementById('metricAccuracy').textContent  = m.accuracy  + '%';
     document.getElementById('metricPrecision').textContent = m.precision + '%';
     document.getElementById('metricRecall').textContent    = m.recall    + '%';
     document.getElementById('metricF1').textContent        = m.f1        + '%';
 
-    // Confusion matrix
     const c = data.confusion;
     document.getElementById('cmTN').textContent = c.TN;
     document.getElementById('cmFP').textContent = c.FP;
     document.getElementById('cmFN').textContent = c.FN;
     document.getElementById('cmTP').textContent = c.TP;
 
-    // Confidence bars
     document.getElementById('confCorrect').textContent    = data.avg_conf_correct   + '%';
     document.getElementById('confIncorrect').textContent  = data.avg_conf_incorrect + '%';
     document.getElementById('confCorrectBar').style.width   = data.avg_conf_correct   + '%';
     document.getElementById('confIncorrectBar').style.width = data.avg_conf_incorrect + '%';
 
-    // Type accuracy
     if (data.type_accuracy !== null) {
         document.getElementById('typeAccuracyBlock').classList.remove('hidden');
         document.getElementById('typeAccuracyVal').textContent = data.type_accuracy + '%';
     }
 
-    // False positives list
     const fpList = document.getElementById('fpList');
     fpList.innerHTML = data.false_positives.length === 0
         ? '<p class="text-gray-400 italic">None — no false positives! ✅</p>'
-        : data.false_positives.map(d => `
-            <div class="p-2 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30">
-                <p class="text-xs font-medium text-gray-700 dark:text-gray-300">${escapeHtml(d.story)}</p>
-                <p class="text-xs text-gray-400 mt-0.5">Confidence: ${d.confidence}% · ${escapeHtml(d.reason)}</p>
-            </div>`).join('');
+        : data.false_positives.map(d => `<div class="p-2 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30"><p class="text-xs font-medium text-gray-700 dark:text-gray-300">${escapeHtml(d.story)}</p><p class="text-xs text-gray-400 mt-0.5">Confidence: ${d.confidence}% · ${escapeHtml(d.reason)}</p></div>`).join('');
     document.getElementById('fpCount').textContent = data.false_positives.length;
 
-    // False negatives list
     const fnList = document.getElementById('fnList');
     fnList.innerHTML = data.false_negatives.length === 0
         ? '<p class="text-gray-400 italic">None — no false negatives! ✅</p>'
-        : data.false_negatives.map(d => `
-            <div class="p-2 rounded-lg bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800/30">
-                <p class="text-xs font-medium text-gray-700 dark:text-gray-300">${escapeHtml(d.story)}</p>
-                <p class="text-xs text-gray-400 mt-0.5">Confidence: ${d.confidence}% · ${escapeHtml(d.reason)}</p>
-            </div>`).join('');
+        : data.false_negatives.map(d => `<div class="p-2 rounded-lg bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800/30"><p class="text-xs font-medium text-gray-700 dark:text-gray-300">${escapeHtml(d.story)}</p><p class="text-xs text-gray-400 mt-0.5">Confidence: ${d.confidence}% · ${escapeHtml(d.reason)}</p></div>`).join('');
     document.getElementById('fnCount').textContent = data.false_negatives.length;
 
-    // Per-story table
     const tbody = document.getElementById('evalTableBody');
     tbody.innerHTML = data.details.map(d => {
-        const matchIcon = d.correct
-            ? '<span class="text-green-500 font-bold">✅</span>'
-            : '<span class="text-red-500 font-bold">❌</span>';
-        const predColor = d.pred_label === 'NFR'
-            ? 'text-red-500 dark:text-red-400'
-            : d.pred_label === 'FR'
-                ? 'text-green-600 dark:text-green-400'
-                : 'text-gray-400';
+        const matchIcon = d.correct ? '<span class="text-green-500 font-bold">✅</span>' : '<span class="text-red-500 font-bold">❌</span>';
+        const predColor = d.pred_label === 'NFR' ? 'text-red-500 dark:text-red-400' : d.pred_label === 'FR' ? 'text-green-600 dark:text-green-400' : 'text-gray-400';
         const trueColor = d.true_label === 'NFR' ? 'text-red-500' : 'text-green-600';
         const rowBg = d.correct ? '' : 'bg-red-50/50 dark:bg-red-900/10';
-
         return `<tr class="${rowBg}">
-            <td class="px-4 py-3 max-w-xs">
-                <p class="truncate text-gray-700 dark:text-gray-300" title="${escapeHtml(d.story)}">${escapeHtml(d.story)}</p>
-            </td>
+            <td class="px-4 py-3 max-w-xs"><p class="truncate text-gray-700 dark:text-gray-300" title="${escapeHtml(d.story)}">${escapeHtml(d.story)}</p></td>
             <td class="px-4 py-3 font-semibold ${trueColor}">${d.true_label}</td>
             <td class="px-4 py-3 font-semibold ${predColor}">${d.pred_label}</td>
             <td class="px-4 py-3 text-center">${matchIcon}</td>
-            <td class="px-4 py-3">
-                <div class="flex items-center gap-2">
-                    <div class="w-16 bg-gray-200 dark:bg-slate-700 rounded-full h-1.5">
-                        <div class="h-1.5 rounded-full ${d.correct ? 'bg-green-500' : 'bg-red-400'}"
-                            style="width:${d.confidence}%"></div>
-                    </div>
-                    <span class="text-xs">${d.confidence}%</span>
-                </div>
-            </td>
-            <td class="px-4 py-3 text-xs">${d.latency}s</td>
-            <td class="px-4 py-3 text-xs text-gray-500 max-w-xs">
-                <p class="truncate" title="${escapeHtml(d.reason)}">${escapeHtml(d.reason)}</p>
-            </td>
+            <td class="px-4 py-3"><div class="flex items-center gap-2"><div class="w-16 bg-gray-200 dark:bg-slate-700 rounded-full h-1.5"><div class="h-1.5 rounded-full ${d.correct?'bg-green-500':'bg-red-400'}" style="width:${d.confidence}%"></div></div><span class="text-xs">${d.confidence}%</span></div></td>
+            <td class="px-4 py-3">${d.latency}s</td>
+            <td class="px-4 py-3 text-xs"><p class="truncate" title="${escapeHtml(d.reason)}">${escapeHtml(d.reason)}</p></td>
         </tr>`;
     }).join('');
 
-    // Show results
     document.getElementById('evalResults').classList.remove('hidden');
-    document.getElementById('evalResults').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.getElementById('evalResults').scrollIntoView({ behavior:'smooth', block:'start' });
 }
 
-// ── Export CSV ──────────────────────────────────────────────
 function exportEvalCSV() {
     if (!evalData) return;
-    const rows = [
-        ['user_story', 'true_label', 'pred_label', 'correct', 'confidence', 'latency', 'reason']
-    ];
+    const rows = [['user_story', 'true_label', 'pred_label', 'correct', 'confidence', 'latency', 'reason']];
     evalData.details.forEach(d => {
-        rows.push([
-            `"${d.story.replace(/"/g, '""')}"`,
-            d.true_label, d.pred_label, d.correct, d.confidence, d.latency,
-            `"${d.reason.replace(/"/g, '""')}"`
-        ]);
+        rows.push([`"${d.story.replace(/"/g,'""')}"`,d.true_label,d.pred_label,d.correct,d.confidence,d.latency,`"${d.reason.replace(/"/g,'""')}"`]);
     });
-    const csvContent  = rows.map(r => r.join(',')).join('\n');
-    const blob        = new Blob([csvContent], { type: 'text/csv' });
-    const url         = URL.createObjectURL(blob);
-    const a           = document.createElement('a');
-    a.href            = url;
-    a.download        = `eval_${evalData.model}_${evalData.strategy}.csv`;
+    const csvContent = rows.map(r => r.join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `eval_${evalData.model}_${evalData.strategy}.csv`;
     a.click();
     URL.revokeObjectURL(url);
 }
 
-// ── Utility ─────────────────────────────────────────────────
 function escapeHtml(str) {
-    return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 </script>
 {% endblock %}

@@ -1,0 +1,897 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- Header -->
+    <div class="text-center">
+        <h2 class="text-3xl font-bold text-gray-900 dark:text-white">Annotation Studio</h2>
+        <p class="text-gray-500 dark:text-gray-400 mt-2">
+            Assign human ground-truth labels to requirements, review model predictions, and export annotated datasets.
+        </p>
+    </div>
+
+    <!-- Stats bar -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="glass-card p-4 rounded-xl bg-white/70 dark:bg-slate-800/70 text-center">
+            <div id="statTotal" class="text-2xl font-bold text-gray-900 dark:text-white">--</div>
+            <div class="text-xs text-gray-400 mt-1">Total Annotated</div>
+        </div>
+        <div class="glass-card p-4 rounded-xl bg-white/70 dark:bg-slate-800/70 text-center">
+            <div id="statAgree" class="text-2xl font-bold text-green-500">--</div>
+            <div class="text-xs text-gray-400 mt-1">Agree with Model</div>
+        </div>
+        <div class="glass-card p-4 rounded-xl bg-white/70 dark:bg-slate-800/70 text-center">
+            <div id="statDisagree" class="text-2xl font-bold text-red-400">--</div>
+            <div class="text-xs text-gray-400 mt-1">Disagree with Model</div>
+        </div>
+        <div class="glass-card p-4 rounded-xl bg-white/70 dark:bg-slate-800/70 text-center">
+            <div id="statPending" class="text-2xl font-bold text-amber-400">--</div>
+            <div class="text-xs text-gray-400 mt-1">Pending Review</div>
+        </div>
+    </div>
+
+    <!-- Status Workflow Explainer -->
+    <div class="glass-card p-4 rounded-xl bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-700/40 flex flex-wrap items-center gap-4 text-xs">
+        <span class="font-semibold text-amber-700 dark:text-amber-300 shrink-0">📋 Status Workflow:</span>
+        <div class="flex items-center gap-2">
+            <span class="px-2 py-0.5 rounded-full font-semibold bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300">Pending</span>
+            <span class="text-gray-400">→</span>
+            <span class="px-2 py-0.5 rounded-full font-semibold bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300">Reviewed</span>
+            <span class="text-gray-400">→</span>
+            <span class="px-2 py-0.5 rounded-full font-semibold bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300">Exported</span>
+        </div>
+        <span class="text-gray-500 dark:text-gray-400">
+            <strong class="text-amber-600 dark:text-amber-400">Pending</strong> = saved but not yet verified ·
+            <strong class="text-blue-600 dark:text-blue-400">Reviewed</strong> = human verified correct ·
+            <strong class="text-green-600 dark:text-green-400">Exported</strong> = included in a dataset export.
+            Click <strong>✓ Mark Reviewed</strong> in the queue to promote an annotation.
+        </span>
+    </div>
+
+    <!-- Mode Tabs -->
+    <div class="flex gap-2 flex-wrap">
+        <button id="tabNew" onclick="switchTab('new')"
+            class="px-5 py-2 rounded-full text-sm font-semibold transition-all bg-amber-500 text-white shadow">
+            ✏️ Annotate New
+        </button>
+        <button id="tabQueue" onclick="switchTab('queue')"
+            class="px-5 py-2 rounded-full text-sm font-semibold transition-all bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-600">
+            📋 Annotation Queue
+        </button>
+        <button id="tabHistory" onclick="switchTab('history')"
+            class="px-5 py-2 rounded-full text-sm font-semibold transition-all bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-600">
+            📚 My Annotations
+        </button>
+    </div>
+
+    <!-- ══════════════════════════════════════
+         TAB: ANNOTATE NEW
+    ══════════════════════════════════════ -->
+    <div id="tabNewContent">
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+
+            <!-- LEFT: Input form -->
+            <div class="space-y-4">
+                <div class="glass-card p-6 rounded-2xl bg-white/70 dark:bg-slate-800/70 space-y-4">
+                    <h3 class="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-amber-400"></span> Requirement
+                    </h3>
+
+                    <div>
+                        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Requirement / User Story</label>
+                        <textarea id="annoStory" rows="4"
+                            class="w-full mt-1 themed-input rounded-xl p-3 text-sm resize-none focus:ring-2 focus:ring-amber-500 transition-all placeholder-gray-400 dark:placeholder-gray-600"
+                            placeholder="Paste or type a requirement here, or click a row on the right to load it automatically."></textarea>
+                    </div>
+
+                    <!-- Link to existing model result -->
+                    <div>
+                        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Link to Batch Result ID <span class="text-gray-400 font-normal">(optional)</span>
+                        </label>
+                        <div class="flex gap-2 mt-1">
+                            <input type="number" id="annoResultId" placeholder="e.g. 42"
+                                class="flex-1 themed-input rounded-lg p-2.5 text-sm">
+                            <button onclick="loadResultById()"
+                                class="bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-300 px-3 py-2 rounded-lg text-sm font-medium transition-all">
+                                Load
+                            </button>
+                        </div>
+                        <div id="loadedResultInfo" class="hidden mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-xs text-blue-600 dark:text-blue-400"></div>
+                    </div>
+
+                    <!-- Model prediction snapshot -->
+                    <div id="modelPredBox" class="hidden p-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50">
+                        <p class="text-xs text-gray-400 uppercase font-semibold mb-2">Model Prediction (snapshot)</p>
+                        <div class="flex items-center gap-3">
+                            <span id="modelPredBadge" class="px-3 py-1 rounded-lg text-sm font-bold border">--</span>
+                            <span id="modelPredModel" class="text-xs text-gray-400 font-mono">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Annotation Form -->
+                <div class="glass-card p-6 rounded-2xl bg-white/70 dark:bg-slate-800/70 space-y-4">
+                    <h3 class="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-amber-400"></span> Your Annotation
+                    </h3>
+
+                    <!-- FR / NFR toggle -->
+                    <div>
+                        <label class="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-2">True Label <span class="text-red-400">*</span></label>
+                        <div class="flex gap-3">
+                            <button id="btnFR" onclick="setLabel('FR')"
+                                class="flex-1 py-3 rounded-xl border-2 font-bold text-sm transition-all border-gray-200 dark:border-slate-600 text-gray-500 dark:text-gray-400 hover:border-green-400 hover:text-green-600">
+                                ✅ FR — Functional
+                            </button>
+                            <button id="btnNFR" onclick="setLabel('NFR')"
+                                class="flex-1 py-3 rounded-xl border-2 font-bold text-sm transition-all border-gray-200 dark:border-slate-600 text-gray-500 dark:text-gray-400 hover:border-red-400 hover:text-red-600">
+                                ⚡ NFR — Non-Functional
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- NFR Type -->
+                    <div id="nfrTypeRow" class="hidden">
+                        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">NFR Type</label>
+                        <select id="annoNfrType" class="w-full mt-1 themed-input rounded-lg p-2.5 text-sm">
+                            <option value="">-- Select type --</option>
+                            <option value="Performance">Performance</option>
+                            <option value="Security">Security</option>
+                            <option value="Usability">Usability</option>
+                            <option value="Reliability">Reliability</option>
+                            <option value="Scalability">Scalability</option>
+                            <option value="Availability">Availability</option>
+                            <option value="Maintainability">Maintainability</option>
+                            <option value="Privacy">Privacy</option>
+                            <option value="Safety">Safety</option>
+                            <option value="Compliance">Compliance</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+
+                    <!-- Annotator confidence -->
+                    <div>
+                        <label class="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-2">
+                            Your Confidence
+                            <span id="confLabel" class="ml-2 text-amber-500 font-bold text-xs"></span>
+                        </label>
+                        <div class="flex gap-2">
+                            {% for i in range(1, 6) %}
+                            <button onclick="setConfidence({{ i }})" id="conf{{ i }}"
+                                class="flex-1 py-2 rounded-lg border-2 text-sm font-semibold transition-all border-gray-200 dark:border-slate-600 text-gray-400 hover:border-amber-400 hover:text-amber-500">
+                                {{ i }}
+                            </button>
+                            {% endfor %}
+                        </div>
+                        <div class="flex justify-between text-xs text-gray-400 mt-1 px-1">
+                            <span>Very Unsure</span><span>Very Sure</span>
+                        </div>
+                    </div>
+
+                    <!-- Notes -->
+                    <div>
+                        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Notes <span class="text-gray-400 font-normal">(optional)</span></label>
+                        <textarea id="annoNotes" rows="2"
+                            class="w-full mt-1 themed-input rounded-xl p-3 text-sm resize-none placeholder-gray-400 dark:placeholder-gray-600"
+                            placeholder="Why did you choose this label? Any ambiguity?"></textarea>
+                    </div>
+
+                    <!-- Error — FIX: removed conflicting 'flex' class from HTML -->
+                    <div id="annoError" class="hidden items-center gap-2 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01"/>
+                        </svg>
+                        <span id="annoErrorText"></span>
+                    </div>
+
+                    <!-- Submit -->
+                    <div class="flex gap-3 pt-2 border-t border-gray-200 dark:border-slate-700">
+                        <button onclick="submitAnnotation()"
+                            class="flex-1 bg-amber-500 hover:bg-amber-400 text-white font-semibold py-2.5 px-4 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            </svg>
+                            Save Annotation
+                        </button>
+                        <button onclick="resetForm()"
+                            class="bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 text-gray-600 dark:text-gray-300 font-semibold py-2.5 px-4 rounded-xl transition-all text-sm">
+                            Clear
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT: Quick queue preview — FIX: onclick uses data attributes, not inline JSON -->
+            <div class="space-y-4">
+                <div class="glass-card p-5 rounded-2xl bg-white/70 dark:bg-slate-800/70">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-semibold text-gray-900 dark:text-white text-sm">Unannotated Results</h3>
+                        <span class="text-xs text-gray-400 bg-gray-100 dark:bg-slate-700 px-2 py-1 rounded-lg">👆 Click any row to load</span>
+                    </div>
+                    <div id="quickQueueList" class="space-y-2 max-h-[520px] overflow-y-auto pr-1">
+                        <p class="text-xs text-gray-400 italic">Loading...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Success toast -->
+        <div id="successToast"
+            class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-2xl bg-green-500 text-white font-semibold text-sm shadow-xl flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+            <span id="toastMsg">Annotation saved!</span>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+         TAB: ANNOTATION QUEUE
+    ══════════════════════════════════════ -->
+    <div id="tabQueueContent" class="hidden space-y-4">
+
+        <!-- Filters -->
+        <div class="glass-card p-4 rounded-2xl bg-white/70 dark:bg-slate-800/70 flex flex-wrap gap-3 items-end">
+            <div>
+                <label class="text-xs font-medium text-gray-500 dark:text-gray-400 block mb-1">Filter by label</label>
+                <select id="qFilter" onchange="loadQueue()" class="themed-input rounded-lg p-2 text-sm">
+                    <option value="">All</option>
+                    <option value="FR">FR only</option>
+                    <option value="NFR">NFR only</option>
+                </select>
+            </div>
+            <div>
+                <label class="text-xs font-medium text-gray-500 dark:text-gray-400 block mb-1">Status</label>
+                <select id="qStatus" onchange="loadQueue()" class="themed-input rounded-lg p-2 text-sm">
+                    <option value="">All</option>
+                    <option value="pending">Pending</option>
+                    <option value="reviewed">Reviewed</option>
+                    <option value="exported">Exported</option>
+                </select>
+            </div>
+            <div>
+                <label class="text-xs font-medium text-gray-500 dark:text-gray-400 block mb-1">Agreement</label>
+                <select id="qAgree" onchange="loadQueue()" class="themed-input rounded-lg p-2 text-sm">
+                    <option value="">All</option>
+                    <option value="agree">Agree only</option>
+                    <option value="disagree">Disagree only</option>
+                </select>
+            </div>
+            <div class="flex-1"></div>
+            <button onclick="exportAnnotations()"
+                class="bg-green-600 hover:bg-green-500 text-white text-sm font-semibold px-4 py-2 rounded-lg flex items-center gap-2 transition-all">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+                </svg>
+                Export CSV
+            </button>
+        </div>
+
+        <!-- Queue table — FIX: 8 columns now includes "Mark Reviewed" action -->
+        <div class="glass-card rounded-2xl bg-white/70 dark:bg-slate-800/70 overflow-hidden">
+            <div class="grid grid-cols-[0.4fr_2.5fr_0.9fr_0.9fr_0.9fr_0.9fr_1.8fr] px-4 py-3 bg-gray-50 dark:bg-slate-900/40 text-xs font-semibold text-gray-400 uppercase tracking-wider border-b border-gray-200 dark:border-slate-700">
+                <div>#</div>
+                <div>Requirement</div>
+                <div>My Label</div>
+                <div>Model Said</div>
+                <div>Agreement</div>
+                <div>Status</div>
+                <div>Actions</div>
+            </div>
+            <div id="queueTableBody" class="divide-y divide-gray-100 dark:divide-slate-700/50 max-h-[520px] overflow-y-auto">
+                <p class="text-xs text-gray-400 italic p-5">Loading...</p>
+            </div>
+            <div id="queuePager" class="flex items-center justify-between px-5 py-3 border-t border-gray-200 dark:border-slate-700 text-xs text-gray-400"></div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+         TAB: MY ANNOTATIONS
+    ══════════════════════════════════════ -->
+    <div id="tabHistoryContent" class="hidden space-y-4">
+
+        <!-- Summary chart strip -->
+        <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+            <div class="glass-card p-5 rounded-2xl bg-white/70 dark:bg-slate-800/70">
+                <h4 class="text-sm font-semibold text-gray-800 dark:text-white mb-3">FR vs NFR Distribution</h4>
+                <div style="height:180px;"><canvas id="labelDistChart"></canvas></div>
+            </div>
+            <div class="glass-card p-5 rounded-2xl bg-white/70 dark:bg-slate-800/70">
+                <h4 class="text-sm font-semibold text-gray-800 dark:text-white mb-3">Agreement with Model</h4>
+                <div style="height:180px;"><canvas id="agreementChart"></canvas></div>
+            </div>
+            <div class="glass-card p-5 rounded-2xl bg-white/70 dark:bg-slate-800/70">
+                <h4 class="text-sm font-semibold text-gray-800 dark:text-white mb-3">NFR Type Breakdown</h4>
+                <div style="height:180px;"><canvas id="nfrTypeChart"></canvas></div>
+            </div>
+        </div>
+
+        <!-- My annotation list — FIX: both Edit and Delete buttons present -->
+        <div class="glass-card rounded-2xl bg-white/70 dark:bg-slate-800/70 overflow-hidden">
+            <div class="grid grid-cols-[0.4fr_2.8fr_0.9fr_1fr_0.7fr_0.7fr_1.4fr] px-5 py-3 bg-gray-50 dark:bg-slate-900/40 text-xs font-semibold text-gray-400 uppercase tracking-wider border-b border-gray-200 dark:border-slate-700">
+                <div>#</div><div>Requirement</div><div>Label</div><div>NFR Type</div>
+                <div>Conf</div><div>Agree</div><div>Actions</div>
+            </div>
+            <div id="myAnnotationBody" class="divide-y divide-gray-100 dark:divide-slate-700/50 max-h-[480px] overflow-y-auto">
+                <p class="text-xs text-gray-400 italic p-5">Loading...</p>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- ══════════════════════════════════════
+     EDIT ANNOTATION MODAL
+══════════════════════════════════════ -->
+<div id="editModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg mx-4 p-6 space-y-4">
+        <div class="flex items-center justify-between">
+            <h3 class="font-bold text-gray-900 dark:text-white">Edit Annotation</h3>
+            <button onclick="closeEditModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+
+        <p id="editStoryPreview" class="text-sm text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-slate-900/50 p-3 rounded-lg italic leading-relaxed max-h-24 overflow-y-auto"></p>
+
+        <div class="grid grid-cols-2 gap-3">
+            <div>
+                <label class="text-xs font-medium text-gray-600 dark:text-gray-300 block mb-1">True Label</label>
+                <select id="editLabel" class="w-full themed-input rounded-lg p-2 text-sm">
+                    <option value="FR">FR — Functional</option>
+                    <option value="NFR">NFR — Non-Functional</option>
+                </select>
+            </div>
+            <div>
+                <label class="text-xs font-medium text-gray-600 dark:text-gray-300 block mb-1">NFR Type</label>
+                <select id="editNfrType" class="w-full themed-input rounded-lg p-2 text-sm">
+                    <option value="">None</option>
+                    <option value="Performance">Performance</option>
+                    <option value="Security">Security</option>
+                    <option value="Usability">Usability</option>
+                    <option value="Reliability">Reliability</option>
+                    <option value="Scalability">Scalability</option>
+                    <option value="Availability">Availability</option>
+                    <option value="Maintainability">Maintainability</option>
+                    <option value="Privacy">Privacy</option>
+                    <option value="Safety">Safety</option>
+                    <option value="Compliance">Compliance</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Status with explanation -->
+        <div>
+            <label class="text-xs font-medium text-gray-600 dark:text-gray-300 block mb-1">
+                Status
+                <span class="ml-1 text-gray-400 font-normal">(Pending → Reviewed → Exported)</span>
+            </label>
+            <select id="editStatus" class="w-full themed-input rounded-lg p-2 text-sm">
+                <option value="pending">⏳ Pending — saved, not yet verified</option>
+                <option value="reviewed">✅ Reviewed — human verified correct</option>
+                <option value="exported">📦 Exported — included in dataset export</option>
+            </select>
+        </div>
+
+        <div>
+            <label class="text-xs font-medium text-gray-600 dark:text-gray-300 block mb-1">Notes</label>
+            <textarea id="editNotes" rows="2" class="w-full themed-input rounded-lg p-2 text-sm resize-none" placeholder="Add or update your notes..."></textarea>
+        </div>
+
+        <input type="hidden" id="editAnnoId">
+
+        <div class="flex gap-3 pt-2 border-t border-gray-200 dark:border-slate-700">
+            <button onclick="saveEdit()"
+                class="flex-1 bg-amber-500 hover:bg-amber-400 text-white font-semibold py-2.5 rounded-xl transition-all text-sm flex items-center justify-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                </svg>
+                Save Changes
+            </button>
+            <button onclick="closeEditModal()"
+                class="bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 text-gray-600 dark:text-gray-300 font-semibold py-2.5 px-4 rounded-xl transition-all text-sm">
+                Cancel
+            </button>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════
+let selectedLabel    = null;
+let selectedConf     = null;
+let linkedResultId   = null;
+let linkedModelLabel = null;
+let linkedModelName  = null;
+let queuePage        = 1;
+let chartInstances   = {};
+
+// Global annotation store — used by action buttons to avoid JSON-in-onclick
+let _annotationCache = {};
+
+// ═══════════════════════════════════════════════════════
+// TAB SWITCHER
+// ═══════════════════════════════════════════════════════
+function switchTab(tab) {
+    ['new','queue','history'].forEach(t => {
+        document.getElementById(`tab${cap(t)}Content`).classList.toggle('hidden', t !== tab);
+        const btn = document.getElementById(`tab${cap(t)}`);
+        btn.className = t === tab
+            ? 'px-5 py-2 rounded-full text-sm font-semibold transition-all bg-amber-500 text-white shadow'
+            : 'px-5 py-2 rounded-full text-sm font-semibold transition-all bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-600';
+    });
+    if (tab === 'queue')   loadQueue();
+    if (tab === 'history') loadMyAnnotations();
+}
+function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+// ═══════════════════════════════════════════════════════
+// LABEL & CONFIDENCE
+// ═══════════════════════════════════════════════════════
+function setLabel(lbl) {
+    selectedLabel = lbl;
+    const isFR = lbl === 'FR';
+    document.getElementById('btnFR').className  = `flex-1 py-3 rounded-xl border-2 font-bold text-sm transition-all ${isFR  ? 'border-green-500 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400' : 'border-gray-200 dark:border-slate-600 text-gray-500 dark:text-gray-400 hover:border-green-400 hover:text-green-600'}`;
+    document.getElementById('btnNFR').className = `flex-1 py-3 rounded-xl border-2 font-bold text-sm transition-all ${!isFR ? 'border-red-500 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400'   : 'border-gray-200 dark:border-slate-600 text-gray-500 dark:text-gray-400 hover:border-red-400 hover:text-red-600'}`;
+    document.getElementById('nfrTypeRow').classList.toggle('hidden', isFR);
+}
+
+function setConfidence(val) {
+    selectedConf = val;
+    const labels = ['','Very Unsure','Unsure','Neutral','Confident','Very Sure'];
+    document.getElementById('confLabel').textContent = labels[val];
+    for (let i = 1; i <= 5; i++) {
+        document.getElementById(`conf${i}`).className =
+            `flex-1 py-2 rounded-lg border-2 text-sm font-semibold transition-all ${i <= val
+                ? 'border-amber-400 bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400'
+                : 'border-gray-200 dark:border-slate-600 text-gray-400 hover:border-amber-400 hover:text-amber-500'}`;
+    }
+}
+
+// ═══════════════════════════════════════════════════════
+// LOAD BY ID (manual)
+// ═══════════════════════════════════════════════════════
+async function loadResultById() {
+    const id = document.getElementById('annoResultId').value.trim();
+    if (!id) return;
+    try {
+        const resp = await fetch(`/api/annotation/result/${id}`);
+        const data = await resp.json();
+        if (!resp.ok || data.error) { showAnnoError(data.error || 'Result not found'); return; }
+        _applyLoadedResult(data.story, data.id, data.classification, data.model, data.category);
+        hideAnnoError();
+    } catch(e) { showAnnoError('Network error: ' + e.message); }
+}
+
+// ═══════════════════════════════════════════════════════
+// FIX: loadQueueItem — safe, no JSON-in-onclick
+// Called from data-* click handler on queue cards
+// ═══════════════════════════════════════════════════════
+function loadQueueItem(resultId) {
+    const r = _annotationCache['queue_' + resultId];
+    if (!r) return;
+    _applyLoadedResult(r.story, r.id, r.classification, r.model, r.category || '');
+    switchTab('new');
+    // Scroll the left panel textarea into view
+    setTimeout(() => document.getElementById('annoStory').scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+}
+
+function _applyLoadedResult(story, id, classification, model, category) {
+    document.getElementById('annoStory').value    = story;
+    document.getElementById('annoResultId').value = id || '';
+    linkedResultId   = id;
+    linkedModelLabel = classification;
+    linkedModelName  = model;
+
+    const info = document.getElementById('loadedResultInfo');
+    info.textContent = `Loaded #${id}: "${story.slice(0, 60)}${story.length > 60 ? '…' : ''}" — Model predicted: ${classification}`;
+    info.classList.remove('hidden');
+
+    const box   = document.getElementById('modelPredBox');
+    const badge = document.getElementById('modelPredBadge');
+    box.classList.remove('hidden');
+    badge.textContent = classification;
+    badge.className = classification === 'NFR'
+        ? 'px-3 py-1 rounded-lg text-sm font-bold border bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 border-red-300 dark:border-red-700'
+        : 'px-3 py-1 rounded-lg text-sm font-bold border bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 border-green-300 dark:border-green-700';
+    document.getElementById('modelPredModel').textContent = `${model} · ${category || ''}`;
+    hideAnnoError();
+}
+
+// ═══════════════════════════════════════════════════════
+// SUBMIT
+// ═══════════════════════════════════════════════════════
+async function submitAnnotation() {
+    const story = document.getElementById('annoStory').value.trim();
+    if (!story)         { showAnnoError('Please enter or load a requirement.'); return; }
+    if (!selectedLabel) { showAnnoError('Please select FR or NFR as the true label.'); return; }
+
+    const payload = {
+        story,
+        true_label:      selectedLabel,
+        nfr_type:        selectedLabel === 'NFR' ? document.getElementById('annoNfrType').value : null,
+        confidence:      selectedConf,
+        notes:           document.getElementById('annoNotes').value.trim(),
+        batch_result_id: linkedResultId,
+        model_label:     linkedModelLabel,
+        model_name:      linkedModelName,
+    };
+
+    try {
+        const resp = await fetch('/api/annotations', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await resp.json();
+        if (!resp.ok || data.error) { showAnnoError(data.error || 'Save failed'); return; }
+        showToast('Annotation saved! ✓');
+        resetForm();
+        loadStats();
+        loadQuickQueue();
+    } catch(e) { showAnnoError('Network error: ' + e.message); }
+}
+
+function resetForm() {
+    document.getElementById('annoStory').value    = '';
+    document.getElementById('annoResultId').value = '';
+    document.getElementById('annoNotes').value    = '';
+    document.getElementById('annoNfrType').value  = '';
+    document.getElementById('nfrTypeRow').classList.add('hidden');
+    document.getElementById('modelPredBox').classList.add('hidden');
+    document.getElementById('loadedResultInfo').classList.add('hidden');
+    selectedLabel = null; selectedConf = null;
+    linkedResultId = null; linkedModelLabel = null; linkedModelName = null;
+    ['btnFR','btnNFR'].forEach(id =>
+        document.getElementById(id).className = 'flex-1 py-3 rounded-xl border-2 font-bold text-sm transition-all border-gray-200 dark:border-slate-600 text-gray-500 dark:text-gray-400'
+    );
+    for (let i = 1; i <= 5; i++)
+        document.getElementById(`conf${i}`).className = 'flex-1 py-2 rounded-lg border-2 text-sm font-semibold transition-all border-gray-200 dark:border-slate-600 text-gray-400 hover:border-amber-400 hover:text-amber-500';
+    document.getElementById('confLabel').textContent = '';
+    hideAnnoError();
+}
+
+// ═══════════════════════════════════════════════════════
+// STATS
+// ═══════════════════════════════════════════════════════
+async function loadStats() {
+    try {
+        const d = await (await fetch('/api/annotations/stats')).json();
+        document.getElementById('statTotal').textContent    = d.total    ?? '--';
+        document.getElementById('statAgree').textContent    = d.agree    ?? '--';
+        document.getElementById('statDisagree').textContent = d.disagree ?? '--';
+        document.getElementById('statPending').textContent  = d.pending  ?? '--';
+    } catch(_) {}
+}
+
+// ═══════════════════════════════════════════════════════
+// QUICK QUEUE — FIX: stores data in _annotationCache, uses data-id on click
+// ═══════════════════════════════════════════════════════
+async function loadQuickQueue() {
+    try {
+        const data = await (await fetch('/api/annotations/queue?limit=20')).json();
+        const el   = document.getElementById('quickQueueList');
+        if (!data.items || data.items.length === 0) {
+            el.innerHTML = '<p class="text-xs text-gray-400 italic text-center py-4">🎉 All results annotated!</p>';
+            return;
+        }
+        el.innerHTML = '';
+        data.items.forEach(r => {
+            _annotationCache['queue_' + r.id] = r;
+            const div = document.createElement('div');
+            div.className = 'cursor-pointer p-3 rounded-xl border border-gray-200 dark:border-slate-700 hover:border-amber-400 dark:hover:border-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/10 transition-all group';
+            div.setAttribute('data-id', r.id);
+            div.innerHTML = `
+                <p class="text-xs text-gray-600 dark:text-gray-300 leading-relaxed line-clamp-2 group-hover:text-amber-700 dark:group-hover:text-amber-300">${esc(r.story)}</p>
+                <div class="flex items-center gap-2 mt-1.5">
+                    <span class="text-xs px-2 py-0.5 rounded font-semibold ${r.classification === 'NFR' ? 'bg-red-100 dark:bg-red-900/30 text-red-500' : 'bg-green-100 dark:bg-green-900/30 text-green-600'}">${r.classification}</span>
+                    <span class="text-xs text-gray-400 font-mono truncate">${r.model || ''}</span>
+                    <span class="ml-auto text-xs text-gray-300 shrink-0">#${r.id}</span>
+                </div>`;
+            div.addEventListener('click', () => loadQueueItem(r.id));
+            el.appendChild(div);
+        });
+    } catch(_) {}
+}
+
+// ═══════════════════════════════════════════════════════
+// ANNOTATION QUEUE TABLE — FIX: actions use cache IDs, not inline JSON
+// ═══════════════════════════════════════════════════════
+async function loadQueue() {
+    const params = new URLSearchParams({ page: queuePage });
+    const label  = document.getElementById('qFilter').value;
+    const status = document.getElementById('qStatus').value;
+    const agree  = document.getElementById('qAgree').value;
+    if (label)  params.set('label', label);
+    if (status) params.set('status', status);
+    if (agree)  params.set('agree', agree);
+
+    try {
+        const data = await (await fetch('/api/annotations?' + params)).json();
+        const body = document.getElementById('queueTableBody');
+
+        if (!data.items || data.items.length === 0) {
+            body.innerHTML = '<p class="text-xs text-gray-400 italic p-5">No annotations found matching the filters.</p>';
+            document.getElementById('queuePager').innerHTML = '';
+            return;
+        }
+
+        body.innerHTML = '';
+        data.items.forEach(a => {
+            _annotationCache['anno_' + a.id] = a;
+            const div = document.createElement('div');
+            div.className = 'grid grid-cols-[0.4fr_2.5fr_0.9fr_0.9fr_0.9fr_0.9fr_1.8fr] px-4 py-3 text-xs items-center hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-colors';
+            const isPending  = a.status === 'pending';
+            div.innerHTML = `
+                <div class="text-gray-400 font-mono">${a.id}</div>
+                <div class="text-gray-600 dark:text-gray-300 pr-3 truncate" title="${esc(a.story)}">${esc(a.story.slice(0,65))}${a.story.length > 65 ? '…' : ''}</div>
+                <div>${labelBadge(a.true_label)}</div>
+                <div>${a.model_label ? labelBadge(a.model_label) : '<span class="text-gray-300">—</span>'}</div>
+                <div>${a.agrees_with_model === null ? '<span class="text-gray-300">—</span>' : a.agrees_with_model ? '<span class="text-green-500 font-bold">✓ Agree</span>' : '<span class="text-red-400 font-bold">✗ Differ</span>'}</div>
+                <div>${statusBadge(a.status)}</div>
+                <div class="flex gap-1 flex-wrap">
+                    ${isPending ? `<button data-id="${a.id}" class="review-btn text-xs px-2 py-1 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-200 transition-colors font-semibold" title="Mark as Reviewed">✓ Review</button>` : ''}
+                    <button data-id="${a.id}" class="edit-btn p-1.5 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/30 text-amber-500 transition-colors" title="Edit">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                    </button>
+                    <button data-id="${a.id}" class="delete-btn p-1.5 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 text-red-400 transition-colors" title="Delete">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                    </button>
+                </div>`;
+            body.appendChild(div);
+        });
+
+        // Attach event listeners using delegation — FIX for actions not working
+        body.querySelectorAll('.review-btn').forEach(btn => btn.addEventListener('click', () => markReviewed(+btn.dataset.id)));
+        body.querySelectorAll('.edit-btn').forEach(btn   => btn.addEventListener('click', () => openEditModal(_annotationCache['anno_' + btn.dataset.id])));
+        body.querySelectorAll('.delete-btn').forEach(btn => btn.addEventListener('click', () => deleteAnnotation(+btn.dataset.id)));
+
+        document.getElementById('queuePager').innerHTML = `
+            <span class="text-gray-500">${data.total} annotation${data.total !== 1 ? 's' : ''} · Page ${data.page} of ${data.pages}</span>
+            <div class="flex gap-2">
+                <button onclick="queuePage=Math.max(1,queuePage-1);loadQueue()" class="px-3 py-1 rounded bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 transition-colors ${data.page <= 1 ? 'opacity-40 pointer-events-none' : ''}">← Prev</button>
+                <button onclick="queuePage=Math.min(${data.pages},queuePage+1);loadQueue()" class="px-3 py-1 rounded bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 transition-colors ${data.page >= data.pages ? 'opacity-40 pointer-events-none' : ''}">Next →</button>
+            </div>`;
+    } catch(e) { console.error('loadQueue error', e); }
+}
+
+// One-click "Mark as Reviewed"
+async function markReviewed(id) {
+    try {
+        const resp = await fetch(`/api/annotations/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'reviewed' })
+        });
+        if (!resp.ok) { showToast('❌ Failed to update'); return; }
+        showToast('✅ Marked as Reviewed');
+        loadStats(); loadQueue();
+    } catch(e) { showToast('❌ Network error'); }
+}
+
+// ═══════════════════════════════════════════════════════
+// MY ANNOTATIONS — FIX: both Edit + Delete buttons
+// ═══════════════════════════════════════════════════════
+async function loadMyAnnotations() {
+    try {
+        const data  = await (await fetch('/api/annotations?per_page=100')).json();
+        const items = data.items || [];
+        const body  = document.getElementById('myAnnotationBody');
+
+        if (items.length === 0) {
+            body.innerHTML = '<p class="text-xs text-gray-400 italic p-5">No annotations yet. Start annotating from the "Annotate New" tab.</p>';
+            renderCharts([]);
+            return;
+        }
+
+        body.innerHTML = '';
+        items.forEach(a => {
+            _annotationCache['anno_' + a.id] = a;
+            const div = document.createElement('div');
+            div.className = 'grid grid-cols-[0.4fr_2.8fr_0.9fr_1fr_0.7fr_0.7fr_1.4fr] px-5 py-3 text-xs items-center hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-colors';
+            div.innerHTML = `
+                <div class="text-gray-400 font-mono">${a.id}</div>
+                <div class="text-gray-600 dark:text-gray-300 pr-3 truncate" title="${esc(a.story)}">${esc(a.story.slice(0,65))}${a.story.length > 65 ? '…' : ''}</div>
+                <div>${labelBadge(a.true_label)}</div>
+                <div class="text-gray-500">${a.nfr_type || '—'}</div>
+                <div class="text-center">${a.confidence ? '★'.repeat(a.confidence) + '☆'.repeat(5 - a.confidence) : '—'}</div>
+                <div>${a.agrees_with_model === null ? '<span class="text-gray-300">—</span>' : a.agrees_with_model ? '<span class="text-green-500 font-bold">✓</span>' : '<span class="text-red-400 font-bold">✗</span>'}</div>
+                <div class="flex gap-1">
+                    <button data-id="${a.id}" class="edit-btn p-1.5 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/30 text-amber-500 transition-colors" title="Edit">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                    </button>
+                    <button data-id="${a.id}" class="delete-btn p-1.5 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 text-red-400 transition-colors" title="Delete">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                    </button>
+                </div>`;
+            body.appendChild(div);
+        });
+
+        body.querySelectorAll('.edit-btn').forEach(btn   => btn.addEventListener('click', () => openEditModal(_annotationCache['anno_' + btn.dataset.id])));
+        body.querySelectorAll('.delete-btn').forEach(btn => btn.addEventListener('click', () => deleteAnnotation(+btn.dataset.id)));
+
+        renderCharts(items);
+    } catch(e) { console.error('loadMyAnnotations error', e); }
+}
+
+// ═══════════════════════════════════════════════════════
+// CHARTS
+// ═══════════════════════════════════════════════════════
+function renderCharts(items) {
+    const isDark = document.documentElement.classList.contains('dark');
+    const tc = isDark ? '#94a3b8' : '#6b7280';
+
+    const fr  = items.filter(a => a.true_label === 'FR').length;
+    const nfr = items.filter(a => a.true_label === 'NFR').length;
+    destroyChart('labelDist');
+    if (fr + nfr > 0) {
+        chartInstances['labelDist'] = new Chart(document.getElementById('labelDistChart'), {
+            type: 'doughnut',
+            data: { labels: ['FR','NFR'], datasets: [{ data: [fr, nfr], backgroundColor: ['rgba(34,197,94,0.8)','rgba(239,68,68,0.8)'], borderColor: ['#22c55e','#ef4444'], borderWidth: 2 }] },
+            options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: 'bottom', labels: { color: tc, font: { size: 11 }, boxWidth: 12 } } } }
+        });
+    }
+
+    const agree    = items.filter(a => a.agrees_with_model === true).length;
+    const disagree = items.filter(a => a.agrees_with_model === false).length;
+    const noModel  = items.filter(a => a.agrees_with_model === null).length;
+    destroyChart('agreement');
+    if (agree + disagree + noModel > 0) {
+        chartInstances['agreement'] = new Chart(document.getElementById('agreementChart'), {
+            type: 'doughnut',
+            data: { labels: ['Agree','Disagree','No Model'], datasets: [{ data: [agree, disagree, noModel], backgroundColor: ['rgba(34,197,94,0.8)','rgba(239,68,68,0.8)','rgba(148,163,184,0.5)'], borderWidth: 2 }] },
+            options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: 'bottom', labels: { color: tc, font: { size: 11 }, boxWidth: 12 } } } }
+        });
+    }
+
+    const typeCounts = {};
+    items.filter(a => a.nfr_type).forEach(a => { typeCounts[a.nfr_type] = (typeCounts[a.nfr_type]||0)+1; });
+    const typeLabels = Object.keys(typeCounts);
+    destroyChart('nfrType');
+    if (typeLabels.length > 0) {
+        chartInstances['nfrType'] = new Chart(document.getElementById('nfrTypeChart'), {
+            type: 'bar',
+            data: { labels: typeLabels, datasets: [{ data: typeLabels.map(k => typeCounts[k]), backgroundColor: 'rgba(245,158,11,0.7)', borderColor: '#f59e0b', borderWidth: 2, borderRadius: 6 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { color: tc, stepSize: 1 }, grid: { color: isDark ? 'rgba(148,163,184,0.1)':'rgba(0,0,0,0.06)' } }, x: { ticks: { color: tc, font: { size: 9 } }, grid: { display: false } } } }
+        });
+    }
+}
+function destroyChart(id) { if (chartInstances[id]) { chartInstances[id].destroy(); delete chartInstances[id]; } }
+
+// ═══════════════════════════════════════════════════════
+// EDIT MODAL — FIX: opens from cache object, not inline JSON
+// ═══════════════════════════════════════════════════════
+function openEditModal(a) {
+    if (!a) return;
+    document.getElementById('editAnnoId').value            = a.id;
+    document.getElementById('editLabel').value             = a.true_label;
+    document.getElementById('editNfrType').value           = a.nfr_type || '';
+    document.getElementById('editStatus').value            = a.status;
+    document.getElementById('editNotes').value             = a.notes || '';
+    document.getElementById('editStoryPreview').textContent = a.story;
+    document.getElementById('editModal').classList.remove('hidden');
+}
+function closeEditModal() { document.getElementById('editModal').classList.add('hidden'); }
+
+async function saveEdit() {
+    const id = document.getElementById('editAnnoId').value;
+    const payload = {
+        true_label: document.getElementById('editLabel').value,
+        nfr_type:   document.getElementById('editNfrType').value || null,
+        status:     document.getElementById('editStatus').value,
+        notes:      document.getElementById('editNotes').value.trim(),
+    };
+    try {
+        const resp = await fetch(`/api/annotations/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await resp.json();
+        if (!resp.ok || data.error) { alert(data.error || 'Save failed'); return; }
+        closeEditModal();
+        showToast('Annotation updated! ✓');
+        loadStats(); loadQueue();
+        if (!document.getElementById('tabHistoryContent').classList.contains('hidden')) loadMyAnnotations();
+    } catch(e) { alert('Network error: ' + e.message); }
+}
+
+// ═══════════════════════════════════════════════════════
+// DELETE
+// ═══════════════════════════════════════════════════════
+async function deleteAnnotation(id) {
+    if (!confirm(`Delete annotation #${id}? This cannot be undone.`)) return;
+    try {
+        const resp = await fetch(`/api/annotations/${id}`, { method: 'DELETE' });
+        if (!resp.ok) { showToast('❌ Delete failed'); return; }
+        delete _annotationCache['anno_' + id];
+        showToast('Annotation deleted.');
+        loadStats(); loadQueue();
+        if (!document.getElementById('tabHistoryContent').classList.contains('hidden')) loadMyAnnotations();
+    } catch(e) { showToast('❌ Network error'); }
+}
+
+// ═══════════════════════════════════════════════════════
+// EXPORT
+// ═══════════════════════════════════════════════════════
+async function exportAnnotations() {
+    try {
+        const data = await (await fetch('/api/annotations/export')).json();
+        if (!data.rows || !data.rows.length) { alert('No annotations to export.'); return; }
+        const hdr  = ['ID','Story','True Label','NFR Type','Confidence','Model Label','Model Name','Agrees With Model','Status','Notes','Annotated At'];
+        const rows = data.rows.map(r => [
+            r.id,
+            `"${(r.story||'').replace(/"/g,'""')}"`,
+            r.true_label, r.nfr_type||'', r.confidence||'',
+            r.model_label||'', r.model_name||'',
+            r.agrees_with_model === null ? '' : r.agrees_with_model ? 'Yes' : 'No',
+            r.status,
+            `"${(r.notes||'').replace(/"/g,'""')}"`,
+            r.annotated_at || ''
+        ]);
+        const csv = [hdr.join(','), ...rows.map(r => r.join(','))].join('\n');
+        const a   = Object.assign(document.createElement('a'), {
+            href:     URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8;'})),
+            download: `annotations_${new Date().toISOString().slice(0,10)}.csv`
+        });
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        showToast(`📦 Exported ${data.rows.length} annotations — status updated to Exported`);
+
+        // ── Refresh UI so status badges update immediately ──
+        loadStats();
+        loadQueue();
+        if (!document.getElementById('tabHistoryContent').classList.contains('hidden')) {
+            loadMyAnnotations();
+        }
+    } catch(e) { alert('Export failed: ' + e.message); }
+}
+
+// ═══════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════
+function labelBadge(lbl) {
+    if (!lbl) return '<span class="text-gray-300">—</span>';
+    const c = lbl === 'NFR' ? 'red' : 'green';
+    return `<span class="px-2 py-0.5 rounded text-xs font-semibold bg-${c}-100 dark:bg-${c}-900/30 text-${c}-600 dark:text-${c}-400">${lbl}</span>`;
+}
+function statusBadge(s) {
+    const map = { pending: 'amber', reviewed: 'blue', exported: 'green' };
+    const c   = map[s] || 'gray';
+    return `<span class="px-2 py-0.5 rounded text-xs font-semibold bg-${c}-100 dark:bg-${c}-900/30 text-${c}-700 dark:text-${c}-300">${s}</span>`;
+}
+function showToast(msg) {
+    const t = document.getElementById('successToast');
+    document.getElementById('toastMsg').textContent = msg;
+    t.classList.remove('hidden');
+    setTimeout(() => t.classList.add('hidden'), 3000);
+}
+function showAnnoError(msg) {
+    const el = document.getElementById('annoError');
+    document.getElementById('annoErrorText').textContent = msg;
+    el.classList.remove('hidden');
+    el.classList.add('flex');
+}
+function hideAnnoError() {
+    const el = document.getElementById('annoError');
+    el.classList.add('hidden');
+    el.classList.remove('flex');
+}
+function esc(s) {
+    return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ═══════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════
+loadStats();
+loadQuickQueue();
+</script>
+{% endblock %}
