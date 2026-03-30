@@ -57,7 +57,7 @@
                     <span id="evalRowCount" class="text-xs text-gray-400"></span>
                 </div>
                 
-                <div class="flex items-center gap-3">
+                <div class="flex items-center gap-3 flex-wrap justify-center">
                     <button id="evalPreviewBtn" onclick="openEvalPreview(event)"
                         class="flex items-center gap-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 px-5 py-2 rounded-lg transition-colors border border-blue-500/20">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -65,6 +65,16 @@
                         </svg>
                         <span class="text-sm font-medium">Preview</span>
                     </button>
+
+                    <!-- ★ SCAN AMBIGUITY BUTTON — hidden until file is loaded -->
+                    <button id="evalAmbiBtn" onclick="runEvalAmbiScan(event)"
+                        class="hidden items-center gap-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 px-5 py-2 rounded-lg transition-colors border border-amber-500/20">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                        </svg>
+                        <span class="text-sm font-medium">Scan Ambiguity</span>
+                    </button>
+
                     <button onclick="clearEvalFile(event)"
                         class="flex items-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 px-5 py-2 rounded-lg transition-colors border border-red-500/20">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -77,6 +87,9 @@
 
             <input type="file" id="evalFileInput" class="hidden" accept=".csv">
         </div>
+
+        <!-- ★ AMBIGUITY SCAN RESULTS PANEL — injected here by Ambiguity.runBatchScan() -->
+        <div id="evalAmbiContainer"></div>
 
         <!-- Stories Slider (shown after file upload) -->
         <div id="evalSliderSection" class="hidden border border-gray-200 dark:border-slate-700 rounded-xl p-4 bg-gray-50 dark:bg-slate-900/30">
@@ -313,10 +326,11 @@
 </div>
 
 <script>
-let evalFile    = null;
-let evalData    = null;
-let evalParsed  = [];   // parsed CSV rows [{col: val, ...}]
-let evalHeaders = [];   // CSV column names
+let evalFile          = null;
+let evalData          = null;
+let evalParsed        = [];   // parsed CSV rows [{col: val, ...}]
+let evalHeaders       = [];   // CSV column names
+let evalParsedStories = [];   // plain story strings for ambiguity scan
 
 // ── CSV Parser ──────────────────────────────────────────────
 function parseCSV(text) {
@@ -374,6 +388,16 @@ function setEvalFile(file) {
         evalHeaders = headers;
         evalParsed  = rows;
 
+        // ★ FIX: extract story strings for ambiguity scan
+        // Try known story column names, fall back to first column
+        const storyCol = headers.find(h =>
+            ['user_story','story','requirement','text','req','description']
+            .includes(h.toLowerCase().trim())
+        ) || headers[0];
+        evalParsedStories = rows
+            .map(r => (r[storyCol] || '').trim())
+            .filter(s => s.length > 0);
+
         // Update drop zone UI
         document.getElementById('evalUploadPrompt').classList.add('hidden');
         const bar = document.getElementById('evalFileActionBar');
@@ -382,9 +406,16 @@ function setEvalFile(file) {
         document.getElementById('evalFileName').textContent = file.name;
         document.getElementById('evalRowCount').textContent = `(${rows.length} rows)`;
 
+        // ★ FIX: show the Scan Ambiguity button now that stories are loaded
+        const scanBtn = document.getElementById('evalAmbiBtn');
+        if (scanBtn) {
+            scanBtn.classList.remove('hidden');
+            scanBtn.classList.add('flex');
+        }
+
         // Configure slider
-        const max   = Math.min(50, rows.length);
-        const init  = Math.min(50, max);
+        const max    = Math.min(50, rows.length);
+        const init   = Math.min(50, max);
         const slider = document.getElementById('evalVolumeSlider');
         slider.max   = max;
         slider.value = init;
@@ -396,28 +427,48 @@ function setEvalFile(file) {
 
 function clearEvalFile(e) {
     if (e) e.stopPropagation();
-    evalFile    = null;
-    evalParsed  = [];
-    evalHeaders = [];
+    evalFile          = null;
+    evalParsed        = [];
+    evalHeaders       = [];
+    evalParsedStories = [];   // ★ FIX: reset stories array
     document.getElementById('evalFileInput').value = '';
 
     const bar = document.getElementById('evalFileActionBar');
     bar.classList.add('hidden');
     bar.classList.remove('flex');
     document.getElementById('evalUploadPrompt').classList.remove('hidden');
-    // ★ Hide ambiguity UI
-    const ambiRow = document.getElementById('evalAmbiRow');
-    ambiRow.classList.add('hidden');
-    ambiRow.classList.remove('flex');
-    document.getElementById('evalAmbiContainer').innerHTML = '';
+    document.getElementById('evalSliderSection').classList.add('hidden');
+
+    // ★ FIX: hide scan button and clear panel (no evalAmbiRow here)
+    const scanBtn = document.getElementById('evalAmbiBtn');
+    if (scanBtn) { scanBtn.classList.add('hidden'); scanBtn.classList.remove('flex'); }
+    const container = document.getElementById('evalAmbiContainer');
+    if (container) container.innerHTML = '';
 }
 
 // ★ Run ambiguity scan on parsed stories
-async function runEvalAmbiScan() {
-    if (!evalParsedStories.length) { alert("No stories parsed yet."); return; }
-    const container = document.getElementById("evalAmbiContainer");
-    await Ambiguity.runBatchScan(evalParsedStories, container, "evalAmbiPanel");
-    document.getElementById('evalSliderSection').classList.add('hidden');
+async function runEvalAmbiScan(e) {
+    if (e) e.stopPropagation();  // ★ FIX: prevent drop zone click from firing
+
+    if (!evalParsedStories || evalParsedStories.length === 0) {
+        alert("No stories found. Make sure your CSV has a 'user_story' or 'story' column.");
+        return;
+    }
+
+    const btn = document.getElementById('evalAmbiBtn');
+    const originalHTML = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg><span class="text-sm font-medium">Scanning…</span>`;
+    }
+
+    try {
+        const container = document.getElementById('evalAmbiContainer');
+        await Ambiguity.runBatchScan(evalParsedStories, container, 'evalAmbiPanel');
+        container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = originalHTML; }
+    }
 }
 
 // ── Slider Logic ────────────────────────────────────────────
