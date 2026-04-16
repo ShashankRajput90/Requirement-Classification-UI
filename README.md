@@ -1,339 +1,308 @@
 # Requirement Classification Platform (v2)
 
-An advanced **AI-powered platform for classifying software requirements** as **Functional Requirements (FR)** or **Non-Functional Requirements (NFR)** using multiple LLM providers, prompt engineering techniques, and analytics dashboards.
-
-This version introduces **database-backed analytics, API usage tracking, cost monitoring, and batch experimentation** to evaluate models and prompting strategies.
+> An AI-powered full-stack web application for classifying software requirements as **Functional Requirements (FR)** or **Non-Functional Requirements (NFR)** using multiple LLM providers, prompt engineering strategies, and an analytics dashboard.
 
 ---
 
-## Key Features
+## Table of Contents
 
-### Multi-Provider LLM Integration
-
-The platform supports multiple AI providers to classify requirements:
-
-* **Groq**
-
-  * LLaMA 3.1
-  * DeepSeek / GPT-OSS models
-* **Google Gemini**
-
-  * Gemini 2.5 Pro
-* **Cohere**
-
-  * Command R+
-* **Anthropic**
-
-  * Claude 3 Haiku
-* **Local Models**
-
-  * Mistral via Ollama
-
-This enables **cross-model benchmarking and experimentation**.
+- [Overview](#overview)
+- [Features](#features)
+- [Tech Stack](#tech-stack)
+- [System Architecture](#system-architecture)
+- [Database Schema](#database-schema)
+- [Installation](#installation)
+- [Environment Variables](#environment-variables)
+- [Application Pages](#application-pages)
+- [API Endpoints](#api-endpoints)
+- [Prompt Strategies](#prompt-strategies)
+- [Project Structure](#project-structure)
+- [Author](#author)
 
 ---
 
-## Prompt Engineering Strategies
+## Overview
 
-The system allows experimenting with different prompting methods:
+This platform allows software engineers and requirements analysts to classify requirement statements (user stories) automatically using five state-of-the-art LLM providers. Instead of relying on a single model, the platform enables **cross-model comparison** — surfacing agreement as confidence and disagreement as a signal of ambiguity in the requirement itself.
 
-* **Zero Shot**
-* **Few Shot**
-* **Chain of Thought**
-
-These strategies help evaluate how prompting affects classification performance.
-
----
-
-## Analytics Dashboard
-
-The analytics dashboard provides real-time insights including:
-
-### Classification Metrics
-
-* FR vs NFR distribution
-* NFR category breakdown
-* Latency performance
-
-### Prompting Technique Analysis
-
-Compare results between:
-* Zero-shot
-* Few-shot
-* Other prompting strategies
-
-### Batch Experiment Tracking
-
-Each batch run records:
-* Model used
-* Prompting technique
-* Total stories processed
-* Average latency
-* Classification distribution
+**Key capabilities:**
+- Single and batch classification of requirements
+- Side-by-side comparison of LLM outputs
+- Semantic similarity-based deduplication and grouping
+- API cost and token usage tracking
+- Ambiguity detection in requirement language
+- Annotation and human feedback loop
+- Google OAuth + email/password authentication
 
 ---
 
-## API Usage & Cost Dashboard
+## Features
 
-A dedicated **API Usage Dashboard** tracks LLM consumption.
-
-### Usage Metrics
-
-* Total API calls
-* Total tokens used
-* Average cost per request
-* Success rate
-
-### Cost Calculation
-
-Costs are calculated using provider pricing models:
-
-```
-Cost = (Prompt Tokens × Input Rate) +
-       (Completion Tokens × Output Rate)
-```
-
-All usage data is stored in the database for historical analysis.
+| Feature | Description |
+|---|---|
+| Multi-LLM Classification | Groq, Gemini, Claude, Cohere, Mistral in one interface |
+| Prompt Engineering | Zero-shot, Few-shot, Chain-of-Thought strategies |
+| Batch Processing | Upload CSV datasets; real-time streaming progress |
+| Similarity Grouping | Semantic cosine similarity groups near-duplicate NFRs |
+| Ambiguity Detection | Flags vague or poorly structured requirements |
+| Analytics Dashboard | Charts for FR/NFR split, NFR categories, latency trends |
+| API Usage Dashboard | Token count, cost per request, success rate tracking |
+| Annotation System | Human ground-truth labelling with model agreement tracking |
+| Feedback Loop | Users can correct model classifications |
+| Adaptive Cache | File-based cache with TTL and confidence-based revalidation |
+| Google OAuth | Sign in with Google in addition to email/password |
 
 ---
 
-## Batch Processing
+## Tech Stack
 
-Users can upload CSV datasets for large-scale classification.
-
-Features:
-
-* CSV upload support
-* Automatic column detection
-* Batch run tracking
-* Real-time progress monitoring
-* Historical batch results
-
----
-
-## Database Integration
-
-The platform uses **PostgreSQL** for persistent storage.
-
-### Core Tables
-
-**users**
-
-* Authentication and account tracking
-
-**batch_runs**
-
-* Tracks experiment runs
-* Stores model and prompting strategy
-
-**batch_results**
-
-* Stores classification results
-* Token usage
-* Latency
-* Cost per request
-
-This enables **full experiment reproducibility and analytics**.
-
----
-
-## Authentication System
-
-The application includes a login system with:
-
-* User signup
-* Password hashing
-* Session management
-* Protected routes
-
-Each user's experiments and analytics are isolated.
+| Layer | Technology |
+|---|---|
+| Backend | Python, Flask, Flask-Login, Authlib |
+| Database | PostgreSQL, SQLAlchemy ORM, psycopg2 |
+| LLM APIs | Groq (LLaMA 3.1), Google Gemini 2.5 Pro, Anthropic Claude 3 Haiku, Cohere Command R+, Ollama (Mistral) |
+| ML / NLP | scikit-learn, pandas, custom similarity & ambiguity modules |
+| Frontend | Jinja2, Tailwind CSS (Glassmorphic theme), Vanilla JavaScript |
+| Auth | Flask-Login, Werkzeug password hashing, Authlib (Google OAuth 2.0) |
+| Dev Tools | Git, GitHub, VS Code, pgAdmin, python-dotenv |
 
 ---
 
 ## System Architecture
 
 ```
-Frontend (HTML / JS Dashboard)
-        │
-        ▼
-Flask Backend (API Layer)
-        │
-        ├── LLM Integration Layer
-        │       ├── Groq
-        │       ├── Gemini
-        │       ├── Cohere
-        │       ├── Claude
-        │       └── Local Mistral
-        │
-        ├── Prompt Engineering Engine
-        │
-        └── PostgreSQL Database
-                ├── Users
-                ├── Batch Runs
-                └── Batch Results
+┌─────────────────────────────────────────────────────┐
+│              User (Browser)                          │
+│   Single / Batch / Analytics / API Dashboard        │
+└──────────────────┬──────────────────────────────────┘
+                   │ HTTP
+                   ▼
+┌─────────────────────────────────────────────────────┐
+│            Flask Application (app.py)               │
+│  ┌─────────────┐  ┌──────────────┐  ┌───────────┐  │
+│  │ Auth Routes │  │ Main Routes  │  │ API Routes│  │
+│  │ login/signup│  │ /single      │  │ /api/*    │  │
+│  │ Google OAuth│  │ /batch       │  │ analytics │  │
+│  └─────────────┘  │ /analytics   │  │ usage     │  │
+│                   │ /comparison  │  │ batch_runs│  │
+│                   └──────────────┘  └───────────┘  │
+│                           │                         │
+│          ┌────────────────┼─────────────────┐       │
+│          ▼                ▼                 ▼       │
+│  ┌──────────────┐ ┌─────────────┐ ┌──────────────┐ │
+│  │code_integration│ │similarity_ │ │ambiguity_    │ │
+│  │.py           │ │grouping.py  │ │detector.py   │ │
+│  │(LLM router)  │ │(dedup NLP)  │ │(NLP flags)   │ │
+│  └──────┬───────┘ └─────────────┘ └──────────────┘ │
+│         │                                           │
+└─────────┼───────────────────────────────────────────┘
+          │ API Calls
+    ┌─────┴──────────────────────────────────────┐
+    │              LLM Providers                  │
+    │  Groq │ Gemini │ Claude │ Cohere │ Mistral  │
+    └─────────────────────────────────────────────┘
+          │ Results
+          ▼
+┌─────────────────────────────────────────────────────┐
+│              PostgreSQL Database                     │
+│  users │ batch_runs │ batch_results │ feedback       │
+│  requirement_history │ annotations                  │
+└─────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 🛠 Installation
+## Database Schema
 
-### 1 Clone Repository
+| Table | Purpose |
+|---|---|
+| `users` | Stores user accounts; supports email/password and Google OAuth |
+| `batch_runs` | Tracks each experiment run (model used, prompt strategy, total stories) |
+| `batch_results` | Stores individual classification results with latency, confidence, category |
+| `feedback` | Captures human corrections to model predictions |
+| `requirement_history` | Tracks edits to requirement text over time |
+| `annotations` | Human ground-truth labels for model evaluation |
 
-```
+---
+
+## Installation
+
+### 1. Clone the Repository
+
+```bash
 git clone https://github.com/ShashankRajput90/Requirement-Classification-UI.git
 cd Requirement-Classification-UI
 ```
 
----
+### 2. Install Dependencies
 
-### 2 Install Dependencies
-
-```
+```bash
 pip install -r requirements.txt
 ```
 
----
+### 3. Configure Environment Variables
 
-### 3 Configure Environment Variables
+Create a `.env` file in the project root (see [Environment Variables](#environment-variables) below).
 
-Create a `.env` file:
+### 4. Set Up PostgreSQL
 
-```
-GROQ_API_KEY=your_key
-GEMINI_API_KEY=your_key
-COHERE_API_KEY=your_key
-CLAUDE_API_KEY=your_key
-```
-
----
-
-### 4 Setup PostgreSQL
-
-Create a database:
-
-```
+```sql
 CREATE DATABASE nfr_fr_db;
 ```
 
-Update database credentials in `app.py`.
+Then run the database initialisation script:
 
----
-
-### 5 Run Application
-
+```bash
+python init_db.py
 ```
+
+### 5. Run the Application
+
+```bash
 python app.py
 ```
 
-Open:
+Open in browser: `http://localhost:5000`
 
+---
+
+## Environment Variables
+
+Create a `.env` file with the following keys:
+
+```env
+# Flask
+SECRET_KEY=your_secret_key
+
+# Database
+DB_USER=your_db_user
+DB_PASSWORD=your_db_password
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=nfr_fr_db
+
+# LLM API Keys
+GROQ_API_KEY=your_groq_key
+GEMINI_API_KEY=your_gemini_key
+COHERE_API_KEY=your_cohere_key
+CLAUDE_API_KEY=your_anthropic_key
+
+# Google OAuth (optional)
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
 ```
-http://localhost:5000
-```
+
+> **Note:** The Mistral model runs locally via Ollama and does not require an API key. Install Ollama and pull the Mistral model separately.
 
 ---
 
 ## Application Pages
 
-| Page                  | Description                                    |
-| --------------------- | ---------------------------------------------- |
-| Single Classification | Classify individual user stories               |
-| Batch Processing      | Upload datasets for large-scale classification |
-| Analytics Dashboard   | View experiment insights                       |
-| API Usage Dashboard   | Monitor token usage and cost                   |
-| Model Comparison      | Compare LLM performance                        |
-| History               | View past classifications                      |
+| Route | Page | Description |
+|---|---|---|
+| `/` | Home | Landing dashboard (login required) |
+| `/single` | Single Classification | Classify one requirement at a time, view LLM outputs side by side |
+| `/batch` | Batch Processing | Upload a CSV, select model and strategy, stream results in real time |
+| `/analytics` | Analytics Dashboard | FR/NFR distribution, NFR category breakdown, latency charts |
+| `/api_dashboard` | API Usage Dashboard | Token usage, cost per request, success rate per provider |
+| `/comparison` | Model Comparison | Compare accuracy, precision, recall, F1 across models |
+| `/calibration` | Calibration Analysis | Confidence vs. actual accuracy calibration view |
+| `/login` | Login | Email/password or Google Sign-In |
+| `/signup` | Sign Up | Create a new account |
 
 ---
 
 ## API Endpoints
 
-### Classification
-
-```
-POST /single
-```
-
-Classify a single requirement.
-
----
-
-### Batch Processing
-
-```
-POST /batch
-```
-
-Process large datasets of requirements.
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/single` | Classify a single requirement (JSON body) |
+| `POST` | `/batch` | Batch classify from uploaded CSV (streaming NDJSON response) |
+| `GET` | `/api/analytics_data` | Classification metrics (total, FR, NFR, categories, latencies) |
+| `GET` | `/api/batch_runs` | List of all batch experiment runs |
+| `GET` | `/api/batch/status` | Live progress of current batch run |
+| `GET` | `/api/technique_comparison` | Compare prompt strategies across batch runs |
+| `GET` | `/api/compare_prompting` | Aggregated stats per prompting technique |
+| `GET` | `/api/grouping` | Semantic similarity grouping of NFR results |
+| `GET` | `/api/calibration` | Confidence calibration data for latest annotated run |
+| `GET` | `/api/comparison-data` | Per-model accuracy metrics |
+| `POST` | `/api/reset_batch` | Clear all batch results from the database |
 
 ---
 
-### Analytics
+## Prompt Strategies
 
-```
-GET /api/analytics_data
-```
+The platform supports three prompt engineering strategies, selectable per run:
 
-Returns classification metrics.
+| Strategy | Description |
+|---|---|
+| **Zero-shot** | Direct classification prompt with no examples |
+| **Few-shot** | Prompt includes 2–3 labelled examples before the target requirement |
+| **Chain-of-Thought** | Prompt instructs the model to reason step-by-step before classifying |
 
----
-
-### Usage Metrics
-
-```
-GET /api/usage_data
-```
-
-Returns token usage and cost statistics.
+Results from different strategies can be compared in the Analytics and Technique Comparison views.
 
 ---
 
-### Batch Runs
+## Project Structure
 
 ```
-GET /api/batch_runs
+Requirement-Classification-UI/
+├── app.py                          # Main Flask application (routes, logic, cache)
+├── models.py                       # SQLAlchemy database models
+├── code_integration.py             # LLM provider router (Groq, Gemini, Claude, Cohere, Mistral)
+├── similarity_grouping.py          # Semantic similarity engine for deduplication
+├── ambiguity_detector.py           # NLP-based ambiguity flagging
+├── keyword_highlighter.py          # Highlights NFR-relevant keywords in UI
+├── context_utils.py                # Domain context and RQI (Requirement Quality Index) utilities
+├── evaluation.py                   # Model evaluation metrics
+├── Batches.py                      # Batch experiment utilities
+├── init_db.py                      # Database initialisation script
+├── alter_db.py                     # Schema migration helper
+├── check_db.py                     # DB connection diagnostics
+├── requirements.txt                # Python dependencies
+├── templates/                      # Jinja2 HTML templates
+│   ├── index.html
+│   ├── single.html
+│   ├── batch.html
+│   ├── analytics.html
+│   └── ...
+├── static/                         # Static assets (CSS, JS, images)
+├── graphs/                         # Generated graph outputs
+├── cache/                          # File-based classification cache (auto-generated)
+├── balanced_user_stories.csv       # Sample dataset for testing
+└── .env                            # Environment variables (not committed)
 ```
-
-Returns history of batch experiments.
 
 ---
 
-### Prompt Technique Comparison
+## Author
 
-```
-GET /api/technique_comparison
-```
-
-Compare prompting strategies.
+**Shashank Rajput**  
+B.Tech Computer Science (Data Science), Meerut Institute of Technology  
+GitHub: [ShashankRajput90](https://github.com/ShashankRajput90)
 
 ---
 
-### Author
+## License
 
-**Shashank Rajput**
-
-GitHub:
-https://github.com/ShashankRajput90
+Open source — add your preferred license.
 
 ---
 
-### License
+## Acknowledgements
 
-Open source project. Add your preferred license.
+This project integrates the following open-source and commercial technologies:
 
----
-
-### Acknowledgments
-
-This project integrates multiple AI providers and open-source technologies including:
-
-* Flask
-* PostgreSQL
-* Groq API
-* Google Gemini
-* Cohere
-* Anthropic Claude
-* Ollama (Mistral)
+- [Flask](https://flask.palletsprojects.com/) — Python web framework
+- [PostgreSQL](https://www.postgresql.org/) — Relational database
+- [Groq](https://groq.com/) — High-speed LLM inference
+- [Google Gemini](https://ai.google.dev/) — Multimodal LLM
+- [Anthropic Claude](https://www.anthropic.com/) — Structured AI outputs
+- [Cohere](https://cohere.com/) — NLP and classification APIs
+- [Ollama](https://ollama.com/) — Local LLM inference (Mistral)
+- [scikit-learn](https://scikit-learn.org/) — ML evaluation metrics
+- [Tailwind CSS](https://tailwindcss.com/) — Utility-first CSS framework
 
 ---
 
